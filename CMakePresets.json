@@ -1,0 +1,84 @@
+{
+	"version": 3,
+	"configurePresets": [
+		{
+			"name": "base-debug",
+			"hidden": true,
+			"binaryDir": "${sourceDir}/build/${presetName}/cache",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Debug",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/build/${presetName}/install",
+				"CMAKE_RUNTIME_OUTPUT_DIRECTORY": "${sourceDir}/build/${presetName}/out",
+				"CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG": "${sourceDir}/build/${presetName}/out",
+				"CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE": "${sourceDir}/build/${presetName}/out",
+				"CMAKE_ARCHIVE_OUTPUT_DIRECTORY": "${sourceDir}/build/${presetName}/out",
+				"CMAKE_LIBRARY_OUTPUT_DIRECTORY": "${sourceDir}/build/${presetName}/out"
+			}
+		},
+		{
+			"name": "gcc-debug",
+			"displayName": "GCC Debug",
+			"description": "Compiles C and C++ code to a native executable using GNU GCC",
+			"inherits": [
+				"base-debug"
+			],
+			"generator": "Unix Makefiles",
+			"cacheVariables": {
+				"CMAKE_C_COMPILER": "gcc",
+				"CMAKE_CXX_COMPILER": "g++"
+			}
+		},
+		{
+			"name": "clang-debug",
+			"displayName": "Clang Debug",
+			"description": "Compiles C and C++ code to a native executable using LLVM Clang",
+			"inherits": [
+				"base-debug"
+			],
+			"generator": "Unix Makefiles",
+			"cacheVariables": {
+				"CMAKE_C_COMPILER": "clang",
+				"CMAKE_CXX_COMPILER": "clang++"
+			}
+		}, 
+		{
+			"name": "clang-cl-debug-2019",
+			"displayName": "Clang-cl Debug Visual Studio 2019",
+			"description": "Compiles C and C++ code to a native executable using Clang-cl",
+			"inherits": [
+				"base-debug"
+			],
+			"generator": "Visual Studio 16 2019",
+			"cacheVariables": {
+				"CMAKE_GENERATOR_TOOLSET": "ClangCL"
+			}
+		},
+		{
+			"name": "msvc-debug-2019",
+			"displayName": "MSVC Debug Visual Studio 2019",
+			"description": "Compiles C and C++ code to a native executable using MSVC",
+			"inherits": [
+				"base-debug"
+			],
+			"generator": "Visual Studio 16 2019"
+		},
+		{
+			"name": "clang-cl-debug-2022",
+			"displayName": "Clang-cl Debug Visual Studio 2022",
+			"description": "Compiles C and C++ code to a native executable using Clang-cl",
+			"inherits": [
+				"clang-cl-debug-2019"
+			],
+			"generator": "Visual Studio 17 2022"
+		},
+		{
+			"name": "msvc-debug-2022",
+			"displayName": "MSVC Debug Visual Studio 2022",
+			"description": "Compiles C and C++ code to a native executable using MSVC",
+			"inherits": [
+				"msvc-debug-2019"
+			],
+			"generator": "Visual Studio 17 2022"
+		}
+	]
+}

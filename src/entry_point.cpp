@@ -1,4 +1,5 @@
 #include "SDL.h"
+#include "console.h"
 #include "controls.h"
 #include "gui_context.h"
 #include "input.h"
@@ -17,7 +18,19 @@ asio::awaitable<void> main_loop(asio::io_context &ctx) {
     ImGui::SetWindowSize(ImGui::GetWindowViewport()->Size);
 
     static input_state_t input;
+    static console_t console{1000};
+
     const bool changed = update_input_state(input);
+
+    if (ImGui::Button("Add dummy entry")) {
+      auto numstr = std::to_string(rand());
+      console_t::log_entry entry;
+      entry.type = static_cast<console_t::log_entry_type>(rand() % 3);
+      strcpy(entry.message, numstr.c_str());
+      console.add_entry(entry);
+    }
+
+    console.display();
 
     if (changed)
       co_await asio::this_coro::executor; // TODO: communicate with duck

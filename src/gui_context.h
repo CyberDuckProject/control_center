@@ -11,7 +11,6 @@
 #include <imgui_impl_sdlrenderer.h>
 #include <type_traits>
 
-
 class gui_context {
 private:
   void set_imgui_style(float dpi) {
@@ -32,7 +31,7 @@ private:
     style.PopupBorderSize = 1;
     style.FrameBorderSize = 1;
     style.TabBorderSize = 1;
-    style.WindowRounding = 8;
+    style.WindowRounding = 0;
     style.ChildRounding = 0;
     style.FrameRounding = 6;
     style.PopupRounding = 5;

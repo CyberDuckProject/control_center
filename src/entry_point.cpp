@@ -10,9 +10,9 @@
 constexpr float font_size = 23.0f;
 
 asio::awaitable<void> main_loop(asio::io_context &ctx) {
-  constexpr auto wnd_flags = ImGuiWindowFlags_NoCollapse |
-                             ImGuiWindowFlags_NoMove |
-                             ImGuiWindowFlags_NoResize;
+  constexpr auto wnd_flags =
+      ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove |
+      ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar;
   if (ImGui::Begin("CyberDuck Control Center", nullptr, wnd_flags)) {
     ImGui::SetWindowPos({0, 0});
     ImGui::SetWindowSize(ImGui::GetWindowViewport()->Size);

@@ -2,22 +2,31 @@
 #define INPUT_H
 
 #include "controls.h"
+#include "controller.h"
 #include <cstdint>
 #include <imgui.h>
 
-struct input_state_t {
-  struct ip_address_t {
+struct input_state_t
+{
+  struct ip_address_t
+  {
     uint8_t ip[4];
     uint16_t port;
   } duck_address;
-  enum class control_mode_t { automatic = 0, manual = 1 } control_mode;
+  enum class control_mode_t
+  {
+    automatic = 0,
+    manual = 1
+  } control_mode;
   float left_rotor_speed, right_rotor_speed;
 };
 
-bool update_input_state(input_state_t &state) {
+bool update_input_state(input_state_t &state)
+{
   bool changed = false;
   changed |= Controls::WrapWidget(
-      [](const char *label, input_state_t::ip_address_t address) {
+      [](const char *label, input_state_t::ip_address_t address)
+      {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, {0, 0});
         ImGui::PushItemWidth((ImGui::GetContentRegionAvail().x -
                               (ImGui::CalcTextSize(".").x +
@@ -67,6 +76,14 @@ bool update_input_state(input_state_t &state) {
                        input_state_t::control_mode_t::automatic);
   ImGui::Indent(ImGui::GetFontSize());
   {
+    static Controller controller;
+    controller.find_controller();
+    if (controller.working() && state.control_mode == input_state_t::control_mode_t::manual)
+    {
+      state.left_rotor_speed = -controller.left_y();
+      state.right_rotor_speed = -controller.right_y();
+    }
+
     changed |= Controls::DragFloat("Left rotor speed", &state.left_rotor_speed,
                                    0.005f, 0.0f, 1.0f);
     changed |= Controls::DragFloat(

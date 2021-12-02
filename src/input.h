@@ -25,7 +25,7 @@ bool update_input_state(input_state_t &state)
 {
   bool changed = false;
   changed |= Controls::WrapWidget(
-      [](const char *label, input_state_t::ip_address_t address)
+      [](const char *label, input_state_t::ip_address_t &address)
       {
         ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, {0, 0});
         ImGui::PushItemWidth((ImGui::GetContentRegionAvail().x -
@@ -65,11 +65,7 @@ bool update_input_state(input_state_t &state)
         return result;
       },
       "IP Address", state.duck_address);
-
-  Controls::Spinner(
-      "Connecting...", ImGui::GetFrameHeight() / 2, ImGui::GetFrameHeight() / 4,
-      ImGui::GetColorU32(ImGuiCol_CheckMark)); // todo: actually connect
-
+      
   changed |= Controls::ToggleButton("Enable manual controls",
                                     (bool *)&state.control_mode);
   ImGui::BeginDisabled(state.control_mode ==
@@ -82,6 +78,7 @@ bool update_input_state(input_state_t &state)
     {
       state.left_rotor_speed = -controller.left_y();
       state.right_rotor_speed = -controller.right_y();
+      changed = true;
     }
 
     changed |= Controls::DragFloat("Left rotor speed", &state.left_rotor_speed,

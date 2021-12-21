@@ -101,6 +101,32 @@ private:
     colors[ImGuiCol_ModalWindowDimBg] = ImVec4(1.00f, 0.00f, 0.00f, 0.35f);
   }
 
+private:
+  SDL_Window *window;
+  SDL_Renderer *renderer;
+  bool m_should_close = false;
+
+public:
+  class Texture {
+  private:
+    friend class GUIContext;
+    static constexpr auto texture_deleter = [&](SDL_Texture *ptr) {
+      SDL_DestroyTexture(ptr);
+    };
+
+    Texture(SDL_Texture *ptr, size_t width, size_t height)
+        : _ptr{ptr, texture_deleter}, _width{width}, _height{height} {}
+
+  public:
+    ImTextureID handle() const { return _ptr.get(); }
+    size_t width() const { return _width; };
+    size_t height() const { return _height; };
+
+  private:
+    std::unique_ptr<SDL_Texture, decltype(texture_deleter)> _ptr;
+    size_t _width, _height;
+  };
+
 public:
   GUIContext(float font_size) {
     // Initialize SDL
@@ -178,10 +204,26 @@ public:
   }
   bool should_close() const { return m_should_close; }
 
-private:
-  SDL_Window *window;
-  SDL_Renderer *renderer;
-  bool m_should_close = false;
+  struct Pixel {
+    unsigned char r, g, b, a;
+  };
+  Texture create_texture(size_t width, size_t height) {
+    SDL_Texture *id =
+        SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32,
+                          SDL_TEXTUREACCESS_STREAMING, width, height);
+    if (!id)
+      throw std::runtime_error("Could not create texture");
+    SDL_SetTextureBlendMode(id, SDL_BLENDMODE_BLEND);
+
+    return Texture{id, width, height};
+  }
+  void update_texture(const Texture &texture, Pixel *data) {
+    SDL_UpdateTexture(texture._ptr.get(), NULL, static_cast<void *>(data),
+                      sizeof(Pixel) * texture.width());
+  }
 };
+
+using Texture = GUIContext::Texture;
+using Pixel = GUIContext::Pixel;
 
 #endif

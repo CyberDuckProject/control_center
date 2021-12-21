@@ -10,7 +10,8 @@
 
 class UI {
 public:
-  UI(std::optional<Address> &address) : current_address{address} {}
+  UI(std::optional<Address> &address, Texture &img)
+      : current_address{address}, camera_view{img} {}
 
   template <typename F>
   void update(MotorData &motor_data, F &&reconnect_handler) {
@@ -46,6 +47,12 @@ public:
         ImGui::DragFloat("Left speed", &motor_data.left_speed, 0.05, 0, 1);
         ImGui::DragFloat("Right speed", &motor_data.right_speed, 0.05, 0, 1);
       }
+
+      // Display FPS
+      ImGui::Text("Performance: %.3f ms/frame (%.1f FPS)",
+                  1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+
+      ImGui::Image(camera_view.handle(), ImGui::GetContentRegionAvail());
     }
     ImGui::End();
   }
@@ -55,6 +62,7 @@ private:
   char host[bufsz]{};
   char service[bufsz]{};
   std::optional<Address> &current_address;
+  Texture &camera_view;
 };
 
 #endif

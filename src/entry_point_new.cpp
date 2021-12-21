@@ -19,7 +19,7 @@ int main(int, char **) {
   {
     asio::io_context::work work{ctx};
 
-    Transmitter transmitter{ctx};
+    Transmitter transmitter{ctx}; // TODO: refactor into server that also recvs
     MotorData motor_data{};
     asio::steady_timer timer{ctx};
     TransmissionLoop transmission_loop{transmitter, timer, motor_data,
@@ -37,7 +37,11 @@ int main(int, char **) {
 
     // Reciever reciever{ctx};
     GUIContext gui_ctx{23.0f};
-    UI ui{address};
+
+    int w = 200, h = 100; //------------------------------------------------TODO
+    auto img = gui_ctx.create_texture(w, h); //-----------------------------TODO
+
+    UI ui{address, img};
     // RecievingLoop recieving_loop{reciever, ui};
 
     Controller controller;
@@ -50,6 +54,26 @@ int main(int, char **) {
               std::clamp(-controller.right_y(), 0.0f, 1.0f);
         }
       });
+
+      [&]() { //------------------------------------------------------------TODO
+        auto pixels = std::make_unique<Pixel[]>(w * h);
+        static int o = 1;
+        for (int i = 0; i < w * h; ++i) {
+          if (i % o == 0) {
+            pixels[i].r = 255;
+            pixels[i].g = 255;
+            pixels[i].b = 255;
+            pixels[i].a = 128;
+          } else {
+            pixels[i].r = 0;
+            pixels[i].g = 0;
+            pixels[i].b = 0;
+            pixels[i].a = 128;
+          }
+        }
+        ++o;
+        gui_ctx.update_texture(img, pixels.get());
+      }();
 
       gui_ctx.render([&ui, &motor_data, &transmitter] {
         ui.update(motor_data, [&transmitter, &ui](std::string_view host,

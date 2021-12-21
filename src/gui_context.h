@@ -1,17 +1,18 @@
 #ifndef GUI_CONTEXT_H
 #define GUI_CONTEXT_H
 
-#include "font_data.h"
 #include <SDL.h>
-#include <asio.hpp>
-#include <concepts>
 #include <imgui.h>
 #include <imgui_freetype.h>
 #include <imgui_impl_sdl.h>
 #include <imgui_impl_sdlrenderer.h>
-#include <type_traits>
+#include <memory>
+#include <stdexcept>
 
-class gui_context {
+#include "controller.h"
+#include "font_data.h"
+
+class GUIContext {
 private:
   void set_imgui_style(float dpi) {
     ImGuiStyle &style = ImGui::GetStyle();
@@ -101,7 +102,7 @@ private:
   }
 
 public:
-  gui_context(float font_size) {
+  GUIContext(float font_size) {
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) !=
         0)
@@ -136,7 +137,7 @@ public:
     // Set ImGui style
     set_imgui_style(1.0f); // TODO: scale font with higher DPI
   }
-  ~gui_context() {
+  ~GUIContext() {
     ImGui_ImplSDLRenderer_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
@@ -145,41 +146,42 @@ public:
     SDL_DestroyWindow(window);
     SDL_Quit();
   }
-  asio::awaitable<void> run(auto &&guiFunc, auto &&...args) {
-    bool done = false;
-    while (!done) {
-      SDL_Event event;
-      while (SDL_PollEvent(&event)) {
-        ImGui_ImplSDL2_ProcessEvent(&event);
-        if (event.type == SDL_QUIT)
-          done = true;
-        if (event.type == SDL_WINDOWEVENT &&
-            event.window.event == SDL_WINDOWEVENT_CLOSE &&
-            event.window.windowID == SDL_GetWindowID(window))
-          done = true;
-      }
-
-      ImGui_ImplSDLRenderer_NewFrame();
-      ImGui_ImplSDL2_NewFrame(window);
-      ImGui::NewFrame();
-
-      co_await guiFunc(std::forward<decltype(args)>(args)...);
-
-      ImGui::Render();
-
-      ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-      SDL_SetRenderDrawColor(
-          renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255),
-          (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
-      SDL_RenderClear(renderer);
-      ImGui_ImplSDLRenderer_RenderDrawData(ImGui::GetDrawData());
-      SDL_RenderPresent(renderer);
+  template <typename F> void pollEvents(F &&handler) {
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+      ImGui_ImplSDL2_ProcessEvent(&event);
+      if (event.type == SDL_QUIT)
+        m_should_close = true;
+      if (event.type == SDL_WINDOWEVENT &&
+          event.window.event == SDL_WINDOWEVENT_CLOSE &&
+          event.window.windowID == SDL_GetWindowID(window))
+        m_should_close = true;
+      handler(event);
     }
   }
+  template <typename F> void render(F &&gui_func) {
+    ImGui_ImplSDLRenderer_NewFrame();
+    ImGui_ImplSDL2_NewFrame(window);
+    ImGui::NewFrame();
+
+    gui_func();
+
+    ImGui::Render();
+
+    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    SDL_SetRenderDrawColor(
+        renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255),
+        (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));
+    SDL_RenderClear(renderer);
+    ImGui_ImplSDLRenderer_RenderDrawData(ImGui::GetDrawData());
+    SDL_RenderPresent(renderer);
+  }
+  bool should_close() const { return m_should_close; }
 
 private:
   SDL_Window *window;
   SDL_Renderer *renderer;
+  bool m_should_close = false;
 };
 
 #endif

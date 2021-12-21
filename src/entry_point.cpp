@@ -1,49 +1,93 @@
-#include "SDL.h"
-#include "console.h"
-#include "controls.h"
-#include "gui_context.h"
-#include "input.h"
-#include <algorithm>
+#include "transmitter.h"
+#include <SDL.h>
 #include <asio.hpp>
-#include <imgui.h>
+#include <iostream>
+#include <thread>
+#include <utility>
 
-constexpr float font_size = 23.0f;
+using asio::ip::tcp;
 
-asio::awaitable<void> main_loop(asio::io_context &ctx) {
-  constexpr auto wnd_flags =
-      ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove |
-      ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar;
-  if (ImGui::Begin("CyberDuck Control Center", nullptr, wnd_flags)) {
-    ImGui::SetWindowPos({0, 0});
-    ImGui::SetWindowSize(ImGui::GetWindowViewport()->Size);
+struct data {
+  float left;
+  float right;
+};
 
-    static input_state_t input;
-    static console_t console{1000};
+SDL_GameController *controller;
 
-    const bool changed = update_input_state(input);
-
-    if (ImGui::Button("Add dummy entry")) {
-      auto numstr = std::to_string(rand());
-      console_t::log_entry entry;
-      entry.type = static_cast<console_t::log_entry_type>(rand() % 3);
-      strcpy(entry.message, numstr.c_str());
-      console.add_entry(entry);
+void find_controller() {
+  for (int i = 0; i < SDL_NumJoysticks(); ++i) {
+    if (SDL_IsGameController(i)) {
+      controller = SDL_GameControllerOpen(i);
+      if (controller) {
+        break;
+      }
     }
-
-    console.display();
-
-    if (changed)
-      co_await asio::this_coro::executor; // TODO: communicate with duck
   }
-  ImGui::End();
-
-  co_return;
 }
 
-int main(int, char **) {
-  gui_context gui_ctx{font_size};
-  asio::io_context io_ctx;
-  asio::co_spawn(io_ctx, gui_ctx.run(main_loop, io_ctx), asio::detached);
-  io_ctx.run();
-  return 0;
+float left_x() {
+  return SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX) /
+         32767.0f;
+}
+
+float right_x() {
+  return SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTX) /
+         32767.0f;
+}
+
+float left_y() {
+  return SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY) /
+         32767.0f;
+}
+
+float right_y() {
+  return SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTY) /
+         32767.0f;
+}
+
+asio::io_context ctx;
+Transmitter transmitter{ctx};
+data cfg{};
+void send_speed(...) {
+  static asio::steady_timer timer{ctx};
+
+  std::cout << transmitter.remote_address() << '\n';
+  transmitter.async_send(cfg, [](...) {});
+
+  timer.expires_from_now(std::chrono::milliseconds{100});
+  timer.async_wait(send_speed);
+}
+
+int main(int argc, char **argv) {
+  SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER);
+  find_controller();
+
+  transmitter.async_connect("localhost", "13", send_speed);
+
+  std::cout << (void *)controller << '\n';
+
+  std::thread worker{[&]() { ctx.run(); }};
+
+ 
+
+  {
+    asio::io_context::work work{ctx};
+    while (true) {
+      SDL_Event event;
+      while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_CONTROLLERAXISMOTION) {
+          data cfg{};
+          cfg.left = std::clamp(-left_y() * 1.0f, 0.0f, 1.0f);
+          cfg.right = std::clamp(-right_y() * 1.0f, 0.0f, 1.0f);
+
+          transmitter.async_send(cfg, [](...) {});
+          std::cout << "SENT: left: " << cfg.left << ", right: " << cfg.right
+                    << '\n';
+        }
+      }
+      std::cin >> cfg.left >> cfg.right;
+    }
+  }
+
+  worker.join();
 }

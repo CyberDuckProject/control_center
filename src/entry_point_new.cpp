@@ -4,17 +4,20 @@
 
 #include "gui_context.h"
 #include "motor_data.h"
+#include "receiving_loop.h"
 #include "transmission_loop.h"
 #include "transmitter.h"
 #include "ui.h"
 
 using tcp = asio::ip::tcp;
 
-int x;
-
 int main(int, char **) {
   asio::io_context ctx;
-  auto worker = std::thread([&ctx] { ctx.run(); });
+  std::vector<std::thread> workers;
+  const int worker_count = 1;
+  for (int i = 0; i < worker_count; ++i) {
+    workers.emplace_back([&ctx] { ctx.run(); });
+  }
 
   {
     asio::io_context::work work{ctx};
@@ -35,14 +38,13 @@ int main(int, char **) {
     // fix it. TODO: figure this out.
     static std::optional<Address> address{};
 
-    // Reciever reciever{ctx};
     GUIContext gui_ctx{23.0f};
 
-    int w = 200, h = 100; //------------------------------------------------TODO
-    auto img = gui_ctx.create_texture(w, h); //-----------------------------TODO
+    auto camera_view = gui_ctx.create_texture(1280, 720);
+    UI ui{address, camera_view};
 
-    UI ui{address, img};
-    // RecievingLoop recieving_loop{reciever, ui};
+    TextureUpdateData update_data{camera_view};
+    ReceivingLoop receiving_loop{ctx, update_data};
 
     Controller controller;
 
@@ -55,25 +57,12 @@ int main(int, char **) {
         }
       });
 
-      [&]() { //------------------------------------------------------------TODO
-        auto pixels = std::make_unique<Pixel[]>(w * h);
-        static int o = 1;
-        for (int i = 0; i < w * h; ++i) {
-          if (i % o == 0) {
-            pixels[i].r = 255;
-            pixels[i].g = 255;
-            pixels[i].b = 255;
-            pixels[i].a = 128;
-          } else {
-            pixels[i].r = 0;
-            pixels[i].g = 0;
-            pixels[i].b = 0;
-            pixels[i].a = 128;
-          }
-        }
-        ++o;
-        gui_ctx.update_texture(img, pixels.get());
-      }();
+      if (update_data.has_update) {
+        update_data.has_update = false;
+        gui_ctx.update_texture(camera_view, update_data.pixels.get());
+      }
+
+      ui.set_last_camera_video_frametime(receiving_loop.last_frametime());
 
       gui_ctx.render([&ui, &motor_data, &transmitter] {
         ui.update(motor_data, [&transmitter, &ui](std::string_view host,
@@ -92,7 +81,9 @@ int main(int, char **) {
   }
 
   ctx.stop(); // TODO: this shouldn't be neccesary (~work should suffice)
-  worker.join();
+  for (auto &worker : workers) {
+    worker.join();
+  }
 
   return 0;
 }

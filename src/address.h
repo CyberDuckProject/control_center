@@ -18,6 +18,10 @@ struct Address {
   int port;
 };
 
+constexpr int CYBERDUCK_PORT = 13;
+constexpr const char *const CYBERDUCK_SERVICE = "13";
+constexpr int VIDEO_PORT = 1512;
+
 std::ostream &operator<<(std::ostream &out, const Address &adr) {
   out << adr.ip[0] << '.';
   out << adr.ip[1] << '.';

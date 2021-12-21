@@ -7,6 +7,7 @@ add_executable(control_center
     controller.h
     address.h
     transmission_loop.h
+    receiving_loop.h
 )
 target_link_libraries(control_center PRIVATE Imgui Asio)
 target_compile_features(control_center PRIVATE cxx_std_20)

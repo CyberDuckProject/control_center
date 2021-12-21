@@ -14,8 +14,6 @@ private:
   using duration = std::chrono::steady_clock::duration;
   duration interval;
 
-  void send() {}
-
 public:
   TransmissionLoop(Transmitter &transmitter, asio::steady_timer &timer,
                    MotorData &motor_data, const duration &interval)

@@ -24,10 +24,12 @@ public:
 
       // Update address
       {
-        bool changed = false;
+        const bool changed = ImGui::InputText("Host", host, bufsz);
 
-        changed |= ImGui::InputText("Host", host, bufsz);
-        changed |= ImGui::InputText("Service", service, bufsz);
+        ImGui::BeginDisabled();
+        ImGui::InputText("Service", service, bufsz);
+        strcpy(service, CYBERDUCK_SERVICE);
+        ImGui::EndDisabled();
 
         if (changed) {
           reconnect_handler(std::string_view{host}, std::string_view{service});
@@ -49,12 +51,24 @@ public:
       }
 
       // Display FPS
-      ImGui::Text("Performance: %.3f ms/frame (%.1f FPS)",
+      ImGui::Text("GUI Rendering Performance: %.3f ms/frame (%.1f FPS)",
                   1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+      ImGui::Text("Video Streaming Performance: %.3f ms/frame (%.1f FPS)",
+                  camera_frametime.count() / 1e6f,
+                  1e9f / camera_frametime.count());
 
       ImGui::Image(camera_view.handle(), ImGui::GetContentRegionAvail());
     }
     ImGui::End();
+  }
+
+  void set_last_camera_video_frametime(
+      const std::chrono::steady_clock::duration frametime) {
+    static int cnt = 0;
+    constexpr int every = 64;
+    if (cnt++ % every == 0) {
+      camera_frametime = frametime;
+    }
   }
 
 private:
@@ -63,6 +77,7 @@ private:
   char service[bufsz]{};
   std::optional<Address> &current_address;
   Texture &camera_view;
+  std::chrono::steady_clock::duration camera_frametime;
 };
 
 #endif

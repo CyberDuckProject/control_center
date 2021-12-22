@@ -35,8 +35,8 @@ char crand() {
   return last;
 }
 
+static int frame_idx = 0;
 void update_texture() {
-  static int frame_idx = 0;
   int w, c, h;
 
   std::stringstream ss;
@@ -44,27 +44,26 @@ void update_texture() {
   std::string s = ss.str();
 
   auto path = ("C:\\tmp\\" + s + ".png");
-  std::cout << "loading " << path << std::endl;
+  //std::cout << "loading " << path << std::endl;
   auto p = stbi_load(path.c_str(), &w, &h, &c, 3);
   memcpy((void *)(pixels.get()), p, w * h * c);
   stbi_image_free(p);
   ++frame_idx;
-  frame_idx %= 200;
+  frame_idx %= 4200;
 }
 
-constexpr size_t UDP_MAX_PACKET_SZ = 65507;
+constexpr size_t MAX_SZ = 65000;
 constexpr size_t BUFSZ = w * h * 3;
 char compressed_buf[BUFSZ];
-size_t compress_texture() {
-  int compressed_sz = BUFSZ;
+size_t compress_texture(int quality) {
+  int compressed_sz = MAX_SZ;
 
   auto params = jpge::params{};
-  params.m_quality = 50;
-  jpge::compress_image_to_jpeg_file_in_memory(
-      compressed_buf, compressed_sz, w, h, 3,
-      reinterpret_cast<jpge::uint8 *>(pixels.get()), params);
-  if (!compressed_sz)
-    std::cout << "failed to compress texture" << std::endl;
+  params.m_quality = quality;
+  if (!jpge::compress_image_to_jpeg_file_in_memory(
+	  compressed_buf, compressed_sz, w, h, 3,
+	  reinterpret_cast<jpge::uint8*>(pixels.get()), params))
+	  return 0;
   return compressed_sz;
 }
 
@@ -76,14 +75,19 @@ static udp::socket u_socket = []() {
   return socket;
 }();
 void send_texture() {
+	update_texture();
 
-  update_texture();
+	int quality = 50;
+	size_t compressed_sz = 0;
+	do {
+		compressed_sz = compress_texture(quality);
+		quality /= 2;
+	} while (compressed_sz == 0);
 
-  size_t compressed_sz = compress_texture();
-
-  u_socket.async_send_to(
-      asio::buffer(compressed_buf, compressed_sz), receiver,
-      [](asio::error_code ec, std::size_t b) { send_texture(); });
+	u_socket.async_send_to(
+		std::array{asio::buffer(&frame_idx, sizeof(frame_idx)), asio::buffer(compressed_buf, compressed_sz)
+}, receiver,
+[](asio::error_code ec, std::size_t b) { if (ec) { std::cout << "ec: " << ec.message() << std::endl; }send_texture(); });
 }
 
 void _accept();
@@ -91,7 +95,7 @@ void _accept();
 void handle_connection(asio::error_code ec, tcp::socket socket) {
   if (!ec) {
     // TODO: set eyes to steady
-    std::cout << "connected to " << socket.remote_endpoint() << std::endl;
+    //std::cout << "connected to " << socket.remote_endpoint() << std::endl;
 
     receiver = {socket.remote_endpoint().address(), 1512};
 
@@ -102,8 +106,8 @@ void handle_connection(asio::error_code ec, tcp::socket socket) {
       socket.read_some(asio::buffer(data), ec);
 
       if (!ec) {
-        std::cout << "left motor: " << data[0] << std::endl;
-        std::cout << "right motor: " << data[1] << std::endl;
+        //std::cout << "left motor: " << data[0] << std::endl;
+       // std::cout << "right motor: " << data[1] << std::endl;
       } else {
         _accept();
         break;
@@ -115,7 +119,7 @@ void handle_connection(asio::error_code ec, tcp::socket socket) {
 tcp::acceptor *pAcceptor;
 void _accept() {
   // TODO: set eyes to flash
-  std::cout << "awaiting connection... ";
+  //std::cout << "awaiting connection... ";
   receiver = {};
   pAcceptor->async_accept(handle_connection);
 }

@@ -19,6 +19,7 @@ private:
 
   std::chrono::steady_clock::time_point frame_begin_recv;
   FrameStats frame_stats;
+  int frame_number = 0;
 
 public:
   ReceivingLoop(asio::io_context &ctx, TextureUpdateData &update_data)
@@ -32,10 +33,12 @@ public:
 
     const auto now = std::chrono::steady_clock::now();
     frame_stats.frametime = now - frame_begin_recv;
+	if (frame_stats.frametime.count() > 1000000000ll)
+		std::cout << "slow frame idx " << frame_number << " (" << frame_stats.frametime.count() << "ns)\n";
     frame_begin_recv = now;
     frame_stats.framesize = bytes_received;
 
-    socket.async_receive_from(update_data.get_compressed_buffer(), remote,
+	socket.async_receive_from(std::array{ asio::buffer(&frame_number, sizeof(frame_number)), update_data.get_compressed_buffer() }, remote,
                               std::ref(*this));
   }
 

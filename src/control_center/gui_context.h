@@ -110,7 +110,7 @@ public:
   class Texture {
   private:
     friend class GUIContext;
-    static constexpr auto texture_deleter = [&](SDL_Texture *ptr) {
+    static constexpr auto texture_deleter = [](SDL_Texture *ptr) {
       SDL_DestroyTexture(ptr);
     };
 

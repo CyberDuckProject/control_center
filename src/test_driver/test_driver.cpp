@@ -21,8 +21,8 @@ bool in(int i) {
   int c = i % w;
   int r = i / w;
 
-  // return (c + t) % 50 < 25 && (r + t) % 50 < 25;
-  return 1;
+  return (c + t) % 50 < 25 && (r + t) % 50 < 25;
+  // return 1;
 }
 
 char crand() {

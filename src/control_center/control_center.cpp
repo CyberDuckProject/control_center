@@ -13,40 +13,44 @@ using tcp = asio::ip::tcp;
 
 int main(int, char **) {
   asio::io_context ctx;
-  std::vector<std::thread> workers;
-  const int worker_count = 1;
-  for (int i = 0; i < worker_count; ++i) {
-    workers.emplace_back([&ctx] { ctx.run(); });
-  }
 
+  Transmitter transmitter{ctx};
+  MotorData motor_data{};
+  asio::steady_timer timer{ctx};
+  TransmissionLoop transmission_loop{transmitter, timer, motor_data,
+                                     std::chrono::milliseconds{100}};
+
+  // This has to be static and the reason why is rather interesting.
+  // This address is changed inside the transmitter.async_connect callback.
+  // That callback runs on a different thread. For some reason
+  // the address space on that thread is different from that of the main
+  // thread, despite the fact that it should be the same.
+  // So, if the address was not static, it couldn't get modified in any
+  // way from the worker thread. I don't know what causes that nor how to
+  // fix it. TODO: figure this out.
+  static std::optional<Address> address{};
+
+  GUIContext gui_ctx{23.0f};
+
+  auto camera_view = gui_ctx.create_texture(1280, 720);
+  UI ui{address, camera_view};
+
+  TextureUpdateData update_data{camera_view};
+  ReceivingLoop receiving_loop{ctx, update_data};
+
+  Controller controller;
+
+  std::vector<std::thread> workers;
   {
     asio::io_context::work work{ctx};
-
-    Transmitter transmitter{ctx}; // TODO: refactor into server that also recvs
-    MotorData motor_data{};
-    asio::steady_timer timer{ctx};
-    TransmissionLoop transmission_loop{transmitter, timer, motor_data,
-                                       std::chrono::milliseconds{100}};
-
-    // This has to be static and the reason why is rather interesting.
-    // This address is changed inside the transmitter.async_connect callback.
-    // That callback runs on a different thread. For some reason
-    // the address space on that thread is different from that of the main
-    // thread, despite the fact that it should be the same.
-    // So, if the address was not static, it couldn't get modified in any
-    // way from the worker thread. I don't know what causes that nor how to
-    // fix it. TODO: figure this out.
-    static std::optional<Address> address{};
-
-    GUIContext gui_ctx{23.0f};
-
-    auto camera_view = gui_ctx.create_texture(1280, 720);
-    UI ui{address, camera_view};
-
-    TextureUpdateData update_data{camera_view};
-    ReceivingLoop receiving_loop{ctx, update_data};
-
-    Controller controller;
+    const int worker_count = 1;
+    for (int i = 0; i < worker_count; ++i) {
+      workers.emplace_back([&ctx] {
+        std::cout << "began!\n";
+        ctx.run();
+        std::cout << "done!\n";
+      });
+    }
 
     while (!gui_ctx.should_close()) {
       gui_ctx.pollEvents([&motor_data, &controller](const SDL_Event &event) {

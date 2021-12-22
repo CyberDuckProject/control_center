@@ -1,6 +1,7 @@
 #include "io.h"
 #include <asio.hpp>
 #include <iostream>
+#include <jpge.h>
 
 using tcp = asio::ip::tcp;
 using udp = asio::ip::udp;
@@ -10,8 +11,8 @@ asio::io_context ctx;
 struct Pixel {
   char r, g, b;
 };
-const int w = 1280;
-const int h = 720;
+constexpr int w = 480;
+constexpr int h = 240;
 int row = 0;
 auto pixels = std::make_unique<Pixel[]>(w * h);
 static int t = 0;
@@ -20,15 +21,22 @@ bool in(int i) {
   int c = i % w;
   int r = i / w;
 
-  return (c + t) % 50 < 25 && (r + t) % 50 < 25;
+  // return (c + t) % 50 < 25 && (r + t) % 50 < 25;
+  return 1;
+}
+
+char crand() {
+  static char last = 134;
+  last = (last + 219) * 13;
+  return last;
 }
 
 void update_texture() {
   for (int i = 0; i < w * h; ++i) {
     if (in(i)) {
-      pixels[i].r = 255;
-      pixels[i].g = 255;
-      pixels[i].b = 255;
+      pixels[i].r = crand();
+      pixels[i].g = crand();
+      pixels[i].b = crand();
     } else {
       pixels[i].r = 0;
       pixels[i].g = 0;
@@ -36,6 +44,19 @@ void update_texture() {
     }
   }
   ++t;
+}
+
+constexpr size_t UDP_MAX_PACKET_SZ = 65507;
+constexpr size_t BUFSZ = w * h * 3;
+char compressed_buf[BUFSZ];
+size_t compress_texture() {
+  int compressed_sz = BUFSZ;
+  jpge::compress_image_to_jpeg_file_in_memory(
+      compressed_buf, compressed_sz, w, h, 3,
+      reinterpret_cast<jpge::uint8 *>(pixels.get()));
+  if (!compressed_sz)
+    std::cout << "failed to compress texture";
+  return compressed_sz;
 }
 
 udp::endpoint receiver;
@@ -46,15 +67,17 @@ void send_texture() {
     return socket;
   }();
 
-  if (row == 0)
-    update_texture();
+  update_texture();
+
+  size_t compressed_sz = compress_texture();
 
   socket.async_send_to(std::array{asio::buffer(&row, sizeof(row)),
-                                  asio::buffer(pixels.get() + w * row, w * 3)},
+                                  asio::buffer(compressed_buf, compressed_sz)},
                        receiver, [](asio::error_code ec, std::size_t b) {
-                         // std::cout << "sent " << b << ", ec: " <<
-                         // ec.message()
-                         //           << '\n';
+                         if (ec) {
+                           std::cout << "sending error ec: " << ec.message()
+                                     << '\n';
+                         }
                          send_texture();
                        });
   ++row;

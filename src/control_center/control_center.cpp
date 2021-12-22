@@ -32,7 +32,7 @@ int main(int, char **) {
 
   GUIContext gui_ctx{23.0f};
 
-  auto camera_view = gui_ctx.create_texture(1280, 720);
+  auto camera_view = gui_ctx.create_texture(480, 240);
   UI ui{address, camera_view};
 
   TextureUpdateData update_data{camera_view};
@@ -61,10 +61,7 @@ int main(int, char **) {
         }
       });
 
-      if (update_data.has_update) {
-        update_data.has_update = false;
-        gui_ctx.update_texture(camera_view, update_data.pixels.get());
-      }
+      gui_ctx.update_texture(camera_view, update_data.data());
 
       ui.set_last_camera_video_frametime(receiving_loop.last_frametime());
 

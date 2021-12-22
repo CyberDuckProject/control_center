@@ -22,7 +22,7 @@ private:
 
 public:
   ReceivingLoop(asio::io_context &ctx, TextureUpdateData &update_data)
-      : socket{ctx, udp::endpoint{udp::v6(), VIDEO_PORT}}, update_data{
+      : socket{ctx, udp::endpoint{udp::v4(), VIDEO_PORT}}, update_data{
                                                                update_data} {
     (*this)({}, 0);
   }

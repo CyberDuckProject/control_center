@@ -73,7 +73,8 @@ udp::endpoint receiver;
 void send_texture() {
   static udp::socket socket = []() {
     udp::socket socket{ctx};
-    socket.open(udp::v6());
+    socket.open(udp::v4());
+    socket.set_option(asio::socket_base::broadcast(true));
     return socket;
   }();
 
@@ -132,7 +133,7 @@ int main() {
   udp::resolver resolver{ctx};
 
   resolver.async_resolve(
-      "localhost", "1512",
+      "192.168.0.112", "1512",
       [](asio::error_code ec, udp::resolver::results_type results) {
         if (!ec) {
           std::cout << "udp resolved... ";

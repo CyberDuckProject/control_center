@@ -68,6 +68,7 @@ int main(int, char **) {
       gui_ctx.render([&ui, &motor_data, &transmitter] {
         ui.update(motor_data, [&transmitter, &ui](std::string_view host,
                                                   std::string_view service) {
+          address = std::nullopt;
           transmitter.async_connect(
               host, service,
               [](asio::error_code ec, const tcp::endpoint &endpoint) {

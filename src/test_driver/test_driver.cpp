@@ -44,7 +44,7 @@ void update_texture() {
   std::string s = ss.str();
 
   auto path = ("C:\\tmp\\" + s + ".png");
-  std::cout << "loading " << path << '\n';
+  std::cout << "loading " << path << std::endl;
   auto p = stbi_load(path.c_str(), &w, &h, &c, 3);
   memcpy((void *)(pixels.get()), p, w * h * c);
   stbi_image_free(p);
@@ -64,34 +64,26 @@ size_t compress_texture() {
       compressed_buf, compressed_sz, w, h, 3,
       reinterpret_cast<jpge::uint8 *>(pixels.get()), params);
   if (!compressed_sz)
-    std::cout << "failed to compress texture";
+    std::cout << "failed to compress texture" << std::endl;
   return compressed_sz;
 }
 
 udp::endpoint receiver;
+static udp::socket u_socket = []() {
+  udp::socket socket{ctx};
+  socket.open(udp::v4());
+  socket.set_option(asio::socket_base::broadcast(true));
+  return socket;
+}();
 void send_texture() {
-  static udp::socket socket = []() {
-    udp::socket socket{ctx};
-    socket.open(udp::v4());
-    socket.set_option(asio::socket_base::broadcast(true));
-    return socket;
-  }();
 
   update_texture();
 
   size_t compressed_sz = compress_texture();
 
-  socket.async_send_to(std::array{asio::buffer(&row, sizeof(row)),
-                                  asio::buffer(compressed_buf, compressed_sz)},
-                       receiver, [](asio::error_code ec, std::size_t b) {
-                         if (ec) {
-                           std::cout << "sending error ec: " << ec.message()
-                                     << '\n';
-                         }
-                         send_texture();
-                       });
-  ++row;
-  row %= h;
+  u_socket.async_send_to(
+      asio::buffer(compressed_buf, compressed_sz), receiver,
+      [](asio::error_code ec, std::size_t b) { send_texture(); });
 }
 
 void _accept();
@@ -99,7 +91,10 @@ void _accept();
 void handle_connection(asio::error_code ec, tcp::socket socket) {
   if (!ec) {
     // TODO: set eyes to steady
-    std::cout << "connected to " << socket.remote_endpoint() << '\n';
+    std::cout << "connected to " << socket.remote_endpoint() << std::endl;
+
+    receiver = {socket.remote_endpoint().address(), 1512};
+
     while (true) {
       // TODO: this should be done on the main thread
       float data[2];
@@ -107,8 +102,8 @@ void handle_connection(asio::error_code ec, tcp::socket socket) {
       socket.read_some(asio::buffer(data), ec);
 
       if (!ec) {
-        std::cout << "left motor: " << data[0] << '\n';
-        std::cout << "right motor: " << data[1] << '\n';
+        std::cout << "left motor: " << data[0] << std::endl;
+        std::cout << "right motor: " << data[1] << std::endl;
       } else {
         _accept();
         break;
@@ -121,6 +116,7 @@ tcp::acceptor *pAcceptor;
 void _accept() {
   // TODO: set eyes to flash
   std::cout << "awaiting connection... ";
+  receiver = {};
   pAcceptor->async_accept(handle_connection);
 }
 
@@ -128,22 +124,9 @@ int main() {
   tcp::acceptor acceptor{ctx, {tcp::v4(), 13}};
   pAcceptor = &acceptor;
   _accept();
-
-  udp::resolver resolver{ctx};
-
-  resolver.async_resolve(
-      "192.168.0.112", "1512",
-      [](asio::error_code ec, udp::resolver::results_type results) {
-        if (!ec) {
-          std::cout << "udp resolved... ";
-          receiver = results.begin()->endpoint();
-          std::cout << receiver << '\n';
-          send_texture();
-        }
-      });
+  send_texture();
 
   std::thread worker1{[&] { ctx.run(); }};
-  std::thread worker2{[&] { ctx.run(); }};
   ctx.run();
 
   return 0;

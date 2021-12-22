@@ -16,6 +16,7 @@ public:
   template <typename F>
   void async_connect(std::string_view host, std::string_view service,
                      F &&handler) {
+    socket.close();
     resolver.cancel();
     resolver.async_resolve(
         host, service,

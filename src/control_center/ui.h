@@ -37,9 +37,9 @@ public:
           reconnect_handler(std::string_view{host}, std::string_view{service});
         }
 
-        std::stringstream temp{};
-        temp << *current_address;
         if (current_address.has_value()) {
+          std::stringstream temp{};
+          temp << *current_address;
           ImGui::Text(("Connected to " + temp.str()).c_str());
         } else {
           ImGui::Text("Connecting...");

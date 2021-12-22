@@ -16,6 +16,20 @@
 			}
 		},
 		{
+			"name": "base-release",
+			"hidden": true,
+			"binaryDir": "${sourceDir}/build/${presetName}/cache",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "RelWithDebInfo",
+				"CMAKE_INSTALL_PREFIX": "${sourceDir}/build/${presetName}/install",
+				"CMAKE_RUNTIME_OUTPUT_DIRECTORY": "${sourceDir}/build/${presetName}/out",
+				"CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG": "${sourceDir}/build/${presetName}/out",
+				"CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE": "${sourceDir}/build/${presetName}/out",
+				"CMAKE_ARCHIVE_OUTPUT_DIRECTORY": "${sourceDir}/build/${presetName}/out",
+				"CMAKE_LIBRARY_OUTPUT_DIRECTORY": "${sourceDir}/build/${presetName}/out"
+			}
+		},
+		{
 			"name": "gcc-debug",
 			"displayName": "GCC Debug",
 			"description": "Compiles C and C++ code to a native executable using GNU GCC",
@@ -40,7 +54,7 @@
 				"CMAKE_C_COMPILER": "clang",
 				"CMAKE_CXX_COMPILER": "clang++"
 			}
-		}, 
+		},
 		{
 			"name": "clang-cl-debug-2019",
 			"displayName": "Clang-cl Debug Visual Studio 2019",
@@ -77,6 +91,72 @@
 			"description": "Compiles C and C++ code to a native executable using MSVC",
 			"inherits": [
 				"msvc-debug-2019"
+			],
+			"generator": "Visual Studio 17 2022"
+		},
+
+		{
+			"name": "gcc-release",
+			"displayName": "GCC release",
+			"description": "Compiles C and C++ code to a native executable using GNU GCC",
+			"inherits": [
+				"base-release"
+			],
+			"generator": "Unix Makefiles",
+			"cacheVariables": {
+				"CMAKE_C_COMPILER": "gcc",
+				"CMAKE_CXX_COMPILER": "g++"
+			}
+		},
+		{
+			"name": "clang-release",
+			"displayName": "Clang release",
+			"description": "Compiles C and C++ code to a native executable using LLVM Clang",
+			"inherits": [
+				"base-release"
+			],
+			"generator": "Unix Makefiles",
+			"cacheVariables": {
+				"CMAKE_C_COMPILER": "clang",
+				"CMAKE_CXX_COMPILER": "clang++"
+			}
+		},
+		{
+			"name": "clang-cl-release-2019",
+			"displayName": "Clang-cl release Visual Studio 2019",
+			"description": "Compiles C and C++ code to a native executable using Clang-cl",
+			"inherits": [
+				"base-release"
+			],
+			"generator": "Visual Studio 16 2019",
+			"cacheVariables": {
+				"CMAKE_GENERATOR_TOOLSET": "ClangCL"
+			}
+		},
+		{
+			"name": "msvc-release-2019",
+			"displayName": "MSVC release Visual Studio 2019",
+			"description": "Compiles C and C++ code to a native executable using MSVC",
+			"inherits": [
+				"base-release"
+			],
+			"generator": "Visual Studio 16 2019"
+		},
+		{
+			"name": "clang-cl-release-2022",
+			"displayName": "Clang-cl release Visual Studio 2022",
+			"description": "Compiles C and C++ code to a native executable using Clang-cl",
+			"inherits": [
+				"clang-cl-release-2019"
+			],
+			"generator": "Visual Studio 17 2022"
+		},
+		{
+			"name": "msvc-release-2022",
+			"displayName": "MSVC release Visual Studio 2022",
+			"description": "Compiles C and C++ code to a native executable using MSVC",
+			"inherits": [
+				"msvc-release-2019"
 			],
 			"generator": "Visual Studio 17 2022"
 		}

@@ -3,6 +3,7 @@
 
 #include <imgui.h>
 #include <optional>
+#include <sstream>
 #include <string_view>
 
 #include "address.h"
@@ -36,10 +37,10 @@ public:
           reconnect_handler(std::string_view{host}, std::string_view{service});
         }
 
+        std::stringstream temp{};
+        temp << *current_address;
         if (current_address.has_value()) {
-          ImGui::Text(("Connected to " +
-                       (std::stringstream{} << *current_address).str())
-                          .c_str());
+          ImGui::Text(("Connected to " + temp.str()).c_str());
         } else {
           ImGui::Text("Connecting...");
         }

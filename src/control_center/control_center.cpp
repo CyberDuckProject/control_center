@@ -32,7 +32,7 @@ int main(int, char **) {
 
   GUIContext gui_ctx{23.0f};
 
-  auto camera_view = gui_ctx.create_texture(480, 240);
+  auto camera_view = gui_ctx.create_texture(1385, 1080);
   UI ui{address, camera_view};
 
   TextureUpdateData update_data{camera_view};
@@ -63,7 +63,7 @@ int main(int, char **) {
 
       gui_ctx.update_texture(camera_view, update_data.data());
 
-      ui.set_last_camera_video_frametime(receiving_loop.last_frametime());
+      ui.set_frame_stats(receiving_loop.last_frame_stats());
 
       gui_ctx.render([&ui, &motor_data, &transmitter] {
         ui.update(motor_data, [&transmitter, &ui](std::string_view host,

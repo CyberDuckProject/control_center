@@ -1,7 +1,12 @@
 #include "io.h"
 #include <asio.hpp>
+#include <iomanip>
 #include <iostream>
 #include <jpge.h>
+#include <sstream>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
 using tcp = asio::ip::tcp;
 using udp = asio::ip::udp;
@@ -9,10 +14,10 @@ using udp = asio::ip::udp;
 asio::io_context ctx;
 
 struct Pixel {
-  char r, g, b;
+  unsigned char r, g, b;
 };
-constexpr int w = 480;
-constexpr int h = 240;
+constexpr int w = 1385;
+constexpr int h = 1080;
 int row = 0;
 auto pixels = std::make_unique<Pixel[]>(w * h);
 static int t = 0;
@@ -32,18 +37,20 @@ char crand() {
 }
 
 void update_texture() {
-  for (int i = 0; i < w * h; ++i) {
-    if (in(i)) {
-      pixels[i].r = crand();
-      pixels[i].g = crand();
-      pixels[i].b = crand();
-    } else {
-      pixels[i].r = 0;
-      pixels[i].g = 0;
-      pixels[i].b = 0;
-    }
-  }
-  ++t;
+  static int frame_idx = 0;
+  int w, c, h;
+
+  std::stringstream ss;
+  ss << std::setw(4) << std::setfill('0') << frame_idx + 1;
+  std::string s = ss.str();
+
+  auto path = ("C:\\tmp\\" + s + ".png");
+  std::cout << "loading " << path << '\n';
+  auto p = stbi_load(path.c_str(), &w, &h, &c, 3);
+  memcpy((void *)(pixels.get()), p, w * h * c);
+  stbi_image_free(p);
+  ++frame_idx;
+  frame_idx %= 200;
 }
 
 constexpr size_t UDP_MAX_PACKET_SZ = 65507;
@@ -51,9 +58,12 @@ constexpr size_t BUFSZ = w * h * 3;
 char compressed_buf[BUFSZ];
 size_t compress_texture() {
   int compressed_sz = BUFSZ;
+
+  auto params = jpge::params{};
+  params.m_quality = 50;
   jpge::compress_image_to_jpeg_file_in_memory(
       compressed_buf, compressed_sz, w, h, 3,
-      reinterpret_cast<jpge::uint8 *>(pixels.get()));
+      reinterpret_cast<jpge::uint8 *>(pixels.get()), params);
   if (!compressed_sz)
     std::cout << "failed to compress texture";
   return compressed_sz;

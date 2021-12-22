@@ -43,9 +43,14 @@ void update_texture() {
   ss << std::setw(4) << std::setfill('0') << frame_idx + 1;
   std::string s = ss.str();
 
-  auto path = ("C:\\tmp\\" + s + ".png");
+  auto path = ("/home/jan/imgs/" + s + ".png");
   //std::cout << "loading " << path << std::endl;
   auto p = stbi_load(path.c_str(), &w, &h, &c, 3);
+  if (!p)
+  {
+    perror("Could not open image file: ");
+    exit(0);
+  }
   memcpy((void *)(pixels.get()), p, w * h * c);
   stbi_image_free(p);
   ++frame_idx;

@@ -22,7 +22,11 @@ public:
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar;
     if (ImGui::Begin("Control Center", nullptr, wnd_flags)) {
       ImGui::SetWindowPos({0, 0});
-      ImGui::SetWindowSize(ImGui::GetWindowViewport()->Size);
+      const auto wnd_sz = ImVec2{
+        ImGui::GetWindowViewport()->Size.x * ImGui::GetWindowViewport()->DpiScale,
+        ImGui::GetWindowViewport()->Size.y * ImGui::GetWindowViewport()->DpiScale
+      };
+      ImGui::SetWindowSize(wnd_sz);
 
       // Update address
       {

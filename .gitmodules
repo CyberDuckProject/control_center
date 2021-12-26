@@ -10,6 +10,9 @@
 [submodule "third_party/asio"]
 	path = third_party/asio
 	url = https://github.com/chriskohlhoff/asio.git
+[submodule "third_party/nativefiledialog-extended"]
+	path = third_party/nativefiledialog-extended
+	url = https://github.com/btzy/nativefiledialog-extended.git
 [submodule "third_party/jpeg-compressor"]
 	path = third_party/jpeg-compressor
-	url = https://github.com/richgel999/jpeg-compressor.git
+	url = https://github.com/glebm/jpeg-compressor.git

@@ -6,3 +6,6 @@
 # Build directories
 cmake-build-*/
 build/
+
+# macOS system files
+.DS_Store

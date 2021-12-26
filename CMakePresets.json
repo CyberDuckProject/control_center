@@ -56,6 +56,20 @@
 			}
 		},
 		{
+			"name": "macos-debug",
+			"displayName": "macOS Debug",
+			"description": "Compiles C and C++ code to a Universal native executable using Apple Clang",
+			"inherits": [
+				"base-debug"
+			],
+			"generator": "Unix Makefiles",
+			"cacheVariables": {
+				"CMAKE_C_COMPILER": "clang",
+				"CMAKE_CXX_COMPILER": "clang++",
+				"CMAKE_OSX_ARCHITECTURES": "x86_64;arm64"
+			}
+		},
+		{
 			"name": "clang-cl-debug-2019",
 			"displayName": "Clang-cl Debug Visual Studio 2019",
 			"description": "Compiles C and C++ code to a native executable using Clang-cl",
@@ -119,6 +133,20 @@
 			"cacheVariables": {
 				"CMAKE_C_COMPILER": "clang",
 				"CMAKE_CXX_COMPILER": "clang++"
+			}
+		},
+		{
+			"name": "macos-release",
+			"displayName": "macOS Release",
+			"description": "Compiles C and C++ code to a Universal native executable using Apple Clang",
+			"inherits": [
+				"base-release"
+			],
+			"generator": "Unix Makefiles",
+			"cacheVariables": {
+				"CMAKE_C_COMPILER": "clang",
+				"CMAKE_CXX_COMPILER": "clang++",
+				"CMAKE_OSX_ARCHITECTURES": "x86_64;arm64"
 			}
 		},
 		{

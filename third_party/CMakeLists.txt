@@ -42,3 +42,6 @@ add_library(JPEG
         jpeg-compressor/jpge.cpp
 )
 target_include_directories(JPEG PUBLIC jpeg-compressor)
+
+# Add Native File Dialog Extended
+add_subdirectory(nativefiledialog-extended)

@@ -12,9 +12,26 @@
 #include "controller.h"
 #include "font_data.h"
 
-class GUIContext {
+class GUIContext
+{
 private:
-  void set_imgui_style(float dpi) {
+  float get_content_scale() const
+  {
+#ifdef __APPLE__
+    const float defaultDPI = 72.0f;
+#elif defined(_WIN32) || defined(__linux__)
+    const float defaultDPI = 96.0f;
+#else
+#error Unsupoorted Platform
+#endif
+    float dpi;
+    if(!SDL_GetDisplayDPI(SDL_GetWindowDisplayIndex(window), nullptr, &dpi, nullptr))
+      return dpi / defaultDPI;
+    return 1.0f; // could not get dpi
+  }
+
+  void set_imgui_style(float dpi)
+  {
     ImGuiStyle &style = ImGui::GetStyle();
     style = ImGuiStyle{};
 
@@ -107,10 +124,12 @@ private:
   bool m_should_close = false;
 
 public:
-  class Texture {
+  class Texture
+  {
   private:
     friend class GUIContext;
-    static constexpr auto texture_deleter = [](SDL_Texture *ptr) {
+    static constexpr auto texture_deleter = [](SDL_Texture *ptr)
+    {
       SDL_DestroyTexture(ptr);
     };
 
@@ -128,7 +147,8 @@ public:
   };
 
 public:
-  GUIContext(float font_size) {
+  GUIContext(float font_size)
+  {
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) !=
         0)
@@ -155,15 +175,20 @@ public:
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     ImGui_ImplSDL2_InitForSDLRenderer(window);
     ImGui_ImplSDLRenderer_Init(renderer);
+
+    // Get DPI
+    const float dpi = 1.0f;
+
     // Load ImGui font
     ImFontConfig cfg;
     cfg.FontDataOwnedByAtlas = false;
-    io.Fonts->AddFontFromMemoryTTF((void *)font_data, font_data_size, font_size,
+    io.Fonts->AddFontFromMemoryTTF((void *)font_data, font_data_size, font_size * dpi,
                                    &cfg);
-    // Set ImGui style
-    set_imgui_style(1.0f); // TODO: scale font with higher DPI
+
+    set_imgui_style(dpi);
   }
-  ~GUIContext() {
+  ~GUIContext()
+  {
     ImGui_ImplSDLRenderer_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
@@ -172,9 +197,12 @@ public:
     SDL_DestroyWindow(window);
     SDL_Quit();
   }
-  template <typename F> void pollEvents(F &&handler) {
+  template <typename F>
+  void pollEvents(F &&handler)
+  {
     SDL_Event event;
-    while (SDL_PollEvent(&event)) {
+    while (SDL_PollEvent(&event))
+    {
       ImGui_ImplSDL2_ProcessEvent(&event);
       if (event.type == SDL_QUIT)
         m_should_close = true;
@@ -185,7 +213,9 @@ public:
       handler(event);
     }
   }
-  template <typename F> void render(F &&gui_func) {
+  template <typename F>
+  void render(F &&gui_func)
+  {
     ImGui_ImplSDLRenderer_NewFrame();
     ImGui_ImplSDL2_NewFrame(window);
     ImGui::NewFrame();
@@ -204,10 +234,12 @@ public:
   }
   bool should_close() const { return m_should_close; }
 
-  struct Pixel {
+  struct Pixel
+  {
     unsigned char r, g, b, a;
   };
-  Texture create_texture(size_t width, size_t height) {
+  Texture create_texture(size_t width, size_t height)
+  {
     SDL_Texture *id =
         SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA32,
                           SDL_TEXTUREACCESS_STREAMING, width, height);
@@ -217,7 +249,8 @@ public:
 
     return Texture{id, width, height};
   }
-  void update_texture(const Texture &texture, Pixel *data) {
+  void update_texture(const Texture &texture, Pixel *data)
+  {
     SDL_UpdateTexture(texture._ptr.get(), NULL, static_cast<void *>(data),
                       sizeof(Pixel) * texture.width());
   }

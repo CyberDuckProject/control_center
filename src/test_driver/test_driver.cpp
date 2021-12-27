@@ -1,174 +1,211 @@
-#include <asio.hpp>
+#include <asio.hpp> // network
 #include <iomanip>
 #include <iostream>
-#include <jpge.h>
+#include <jpge.h> // jpeg compression
 #include <sstream>
+#include <filesystem>
 
 #define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
+#include <stb_image.h> // loading images from disk
 
-#include <nfd.hpp>
+#include <nfd.hpp> // for folder selection dialog
 
-using tcp = asio::ip::tcp;
-using udp = asio::ip::udp;
-
-asio::io_context ctx;
+namespace ip = asio::ip;
+using tcp = ip::tcp;
+using udp = ip::udp;
 
 struct Pixel
 {
   unsigned char r, g, b;
 };
-constexpr int w = 1385;
-constexpr int h = 1080;
-int row = 0;
-auto pixels = std::make_unique<Pixel[]>(w * h);
-static int t = 0;
-
-bool in(int i)
+struct ImageStorage
 {
-  int c = i % w;
-  int r = i / w;
+  const size_t width, height;
+  std::unique_ptr<Pixel[]> data;
 
-  return (c + t) % 50 < 25 && (r + t) % 50 < 25;
-  // return 1;
-}
-
-char crand()
+  ImageStorage(size_t width, size_t height) : width{width},
+                                              height{height},
+                                              data{std::make_unique<Pixel[]>(width * height)}
+  {
+  }
+};
+std::string show_pick_folder_dialog()
 {
-  static char last = 134;
-  last = (last + 219) * 13;
-  return last;
-}
-
-static int frame_idx = 0;
-std::string base_path = [](){
-  NFD::Init();
   NFD::UniquePathN path;
   NFD::PickFolder(path);
   std::string s = path.get();
   return s;
-}();
-void update_texture()
-{
-  int w, c, h;
-
-  std::stringstream ss;
-  ss << std::setw(4) << std::setfill('0') << frame_idx + 428;
-  std::string s = ss.str();
-
-  auto path = (base_path + '/' + s + ".png");
-  auto p = stbi_load(path.c_str(), &w, &h, &c, 3);
-  if (!p)
-  {
-    perror("Could not open image file: ");
-    exit(0);
-  }
-  memcpy((void *)(pixels.get()), p, w * h * c);
-  stbi_image_free(p);
-  ++frame_idx;
-  frame_idx %= 4200;
 }
-
-constexpr size_t MAX_SZ = 65000;
-constexpr size_t BUFSZ = w * h * 3;
-char compressed_buf[BUFSZ];
-size_t compress_texture(int quality)
+class ImageLoader
 {
-  int compressed_sz = MAX_SZ;
+  size_t current_frame;
+  size_t frame_count;
+  std::string base_path;
+
+public:
+  ImageLoader(size_t current_frame, size_t frame_count, const std::string &base_path) : current_frame{current_frame},
+                                                                                        frame_count{frame_count},
+                                                                                        base_path{base_path}
+  {
+  }
+
+  size_t load_next_frame(ImageStorage &out)
+  {
+    std::stringstream ss;
+    ss << std::setw(4) << std::setfill('0') << current_frame;
+    std::string s = ss.str();
+
+    auto path = (base_path + '/' + s + ".png");
+
+    int read_width, read_height, read_components;
+    auto read_image = stbi_load(path.c_str(), &read_width, &read_height, &read_components, 3);
+    if (!read_image)
+      throw std::runtime_error(strerror(errno));
+    if (read_width != out.width || read_height != out.height || read_components != 3)
+      throw std::runtime_error("Read image not compatible with the given image storage");
+
+    memcpy(static_cast<void *>(out.data.get()), read_image, out.width * out.height * 3);
+    stbi_image_free(read_image);
+
+    ++current_frame;
+    current_frame %= frame_count;
+    return current_frame;
+  }
+};
+constexpr size_t MAX_COMPRESSED_IMG_SZ = 65000;
+struct ImageCompressedStorage
+{
+  const size_t capacity;
+  int stored_size;
+  std::unique_ptr<char[]> data;
+
+  ImageCompressedStorage(const ImageStorage &image) : capacity{std::min(image.width * image.height * 3, MAX_COMPRESSED_IMG_SZ)},
+                                                      stored_size{0},
+                                                      data{std::make_unique<char[]>(capacity)}
+  {
+  }
+};
+bool compress_image(ImageCompressedStorage &out, const ImageStorage &image, size_t quality)
+{
+  out.stored_size = out.capacity;
 
   auto params = jpge::params{};
   params.m_quality = quality;
-  if (!jpge::compress_image_to_jpeg_file_in_memory(
-          compressed_buf, compressed_sz, w, h, 3,
-          reinterpret_cast<jpge::uint8 *>(pixels.get()), params))
-    return 0;
-  return compressed_sz;
+  return jpge::compress_image_to_jpeg_file_in_memory(
+      out.data.get(), out.stored_size, image.width, image.height, 3, reinterpret_cast<jpge::uint8 *>(image.data.get()), params);
 }
+constexpr int TCP_PORT = 1333;
+constexpr int UDP_PORT = 1512;
+class TCPConnector
+{
+  tcp::acceptor acceptor;
+  ip::address &receiver;
 
-udp::endpoint receiver;
-static udp::socket u_socket = []()
-{
-  udp::socket socket{ctx};
-  socket.open(udp::v4());
-  socket.set_option(asio::socket_base::broadcast(true));
-  return socket;
-}();
-size_t compressed_sz = 0;
-void send_texture(bool i)
-{
-  if (i)
+  void accept()
   {
-    update_texture();
-
-    int quality = 50;
-    do
-    {
-      compressed_sz = compress_texture(quality);
-      quality /= 2;
-    } while (compressed_sz == 0);
-
-    std::cout << compressed_sz << '\n';
+    acceptor.async_accept(std::ref(*this));
+  }
+  void on_connect()
+  {
+    // TODO: for example flash eyes
+  }
+  void on_receive(float left, float right)
+  {
+    // TODO: change motor speed
+    // std::cout << "left motor: " << left << std::endl;
+    // std::cout << "right motor: " << right << std::endl;
+  }
+  void on_disconnect()
+  {
+    receiver = ip::address{};
   }
 
-  u_socket.async_send_to(
-      std::array{asio::buffer(&frame_idx, sizeof(frame_idx)), asio::buffer(compressed_buf, compressed_sz)}, receiver,
-      [](asio::error_code ec, std::size_t b)
-      {
-        if (ec)
-        {
-          std::cout << " ec: " << ec.message() << std::endl;
-        }
-        send_texture(true);
-      });
-}
-
-void _accept();
-
-void handle_connection(asio::error_code ec, tcp::socket socket)
-{
-  if (!ec)
+public:
+  TCPConnector(asio::io_context &ctx, ip::address &receiver) : acceptor{ctx},
+                                                               receiver{receiver}
   {
-    // TODO: set eyes to steady
-    //std::cout << "connected to " << socket.remote_endpoint() << std::endl;
+    accept();
+  }
 
-    receiver = {socket.remote_endpoint().address(), 1512};
-
-    while (true)
+  void operator()(asio::error_code ec, tcp::socket socket)
+  {
+    if (!ec)
     {
-      // TODO: this should be done on the main thread
-      float data[2];
-      asio::error_code ec;
-      socket.read_some(asio::buffer(data), ec);
+      on_connect();
 
-      if (!ec)
+      receiver = socket.remote_endpoint().address();
+
+      while (true)
       {
-        //std::cout << "left motor: " << data[0] << std::endl;
-        // std::cout << "right motor: " << data[1] << std::endl;
-      }
-      else
-      {
-        _accept();
-        break;
+        float data[2];
+        asio::error_code ec;
+        socket.read_some(asio::buffer(data), ec);
+
+        if (!ec)
+        {
+          on_receive(data[0], data[1]);
+        }
+        else
+        {
+          on_disconnect();
+          accept();
+          break;
+        }
       }
     }
   }
-}
-
-tcp::acceptor *pAcceptor;
-void _accept()
+};
+template <typename TransmissionGenerator>
+class UDPTransmitter
 {
-  // TODO: set eyes to flash
-  //std::cout << "awaiting connection... ";
-  receiver = {};
-  pAcceptor->async_accept(handle_connection);
-}
+  ip::address &receiver;
+  udp::socket socket;
+  TransmissionGenerator generator;
+
+  void transmit()
+  {
+    socket.async_send_to(generator(), {receiver, UDP_PORT}, [&](asio::error_code ec, std::size_t b)
+                         {
+                           if (ec)
+                             std::cerr << " ec: " << ec.message() << std::endl;
+                           transmit();
+                         });
+  }
+
+public:
+  UDPTransmitter(asio::io_context &ctx, ip::address &receiver, TransmissionGenerator &&generator) : receiver{receiver},
+                                                                                                    socket{ctx},
+                                                                                                    generator{generator}
+  {
+    socket.open(udp::v4());
+    socket.set_option(asio::socket_base::broadcast(true));
+    transmit();
+  }
+};
 
 int main()
 {
-  tcp::acceptor acceptor{ctx, {tcp::v4(), 1333}};
-  pAcceptor = &acceptor;
-  _accept();
-  send_texture(true);
+  asio::io_context ctx;
+  ImageStorage image{1385, 1080};
+
+  NFD::Init();
+  ImageLoader loader{1, 4200, show_pick_folder_dialog()};
+
+  ImageCompressedStorage compressed{image};
+
+  ip::address receiver;
+  TCPConnector connector{ctx, receiver};
+
+  UDPTransmitter transmitter{ctx, receiver, [&]()
+                             {
+                               const int frame_idx = loader.load_next_frame(image);
+                               for (int quality = 50; !compress_image(compressed, image, quality);)
+                                 quality /= 2;
+                               return std::array{
+                                  asio::buffer(&frame_idx, sizeof(frame_idx)),
+                                  asio::buffer(static_cast<const char*>(compressed.data.get()), compressed.stored_size)
+                                };
+                             }};
 
   std::thread worker1{[&]
                       { ctx.run(); }};

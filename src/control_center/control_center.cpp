@@ -7,6 +7,7 @@
 #include "receiving_loop.h"
 #include "transmission_loop.h"
 #include "transmitter.h"
+#include "sensor_data.h"
 #include "ui.h"
 
 using tcp = asio::ip::tcp;
@@ -32,11 +33,12 @@ int main(int, char **) {
 
   GUIContext gui_ctx{23.0f};
 
+  SensorData sensor_data;
   auto camera_view = gui_ctx.create_texture(1385, 1080);
-  UI ui{address, camera_view};
+  UI ui{address, camera_view, sensor_data};
 
   TextureUpdateData update_data{camera_view};
-  ReceivingLoop receiving_loop{ctx, update_data};
+  ReceivingLoop receiving_loop{ctx, update_data, sensor_data};
 
   Controller controller;
 

@@ -9,23 +9,26 @@
 #include "address.h"
 #include "frame_stats.h"
 #include "motor_data.h"
+#include "sensor_data.h"
 
-class UI {
+class UI
+{
 public:
-  UI(std::optional<Address> &address, Texture &img)
-      : current_address{address}, camera_view{img} {}
+  UI(std::optional<Address> &address, const Texture &img, const SensorData &sensor_data)
+      : current_address{address}, camera_view{img}, sensor_data{sensor_data} {}
 
   template <typename F>
-  void update(MotorData &motor_data, F &&reconnect_handler) {
+  void update(MotorData &motor_data, F &&reconnect_handler)
+  {
     constexpr auto wnd_flags =
         ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar;
-    if (ImGui::Begin("Control Center", nullptr, wnd_flags)) {
+    if (ImGui::Begin("Control Center", nullptr, wnd_flags))
+    {
       ImGui::SetWindowPos({0, 0});
       const auto wnd_sz = ImVec2{
-        ImGui::GetWindowViewport()->Size.x * ImGui::GetWindowViewport()->DpiScale,
-        ImGui::GetWindowViewport()->Size.y * ImGui::GetWindowViewport()->DpiScale
-      };
+          ImGui::GetWindowViewport()->Size.x * ImGui::GetWindowViewport()->DpiScale,
+          ImGui::GetWindowViewport()->Size.y * ImGui::GetWindowViewport()->DpiScale};
       ImGui::SetWindowSize(wnd_sz);
 
       // Update address
@@ -37,15 +40,19 @@ public:
         strcpy(service, CYBERDUCK_SERVICE);
         ImGui::EndDisabled();
 
-        if (changed) {
+        if (changed)
+        {
           reconnect_handler(std::string_view{host}, std::string_view{service});
         }
 
-        if (current_address.has_value()) {
+        if (current_address.has_value())
+        {
           std::stringstream temp{};
           temp << *current_address;
           ImGui::Text(("Connected to " + temp.str()).c_str());
-        } else {
+        }
+        else
+        {
           ImGui::Text("Connecting...");
         }
       }
@@ -55,6 +62,8 @@ public:
         ImGui::DragFloat("Left speed", &motor_data.left_speed, 0.05, 0, 1);
         ImGui::DragFloat("Right speed", &motor_data.right_speed, 0.05, 0, 1);
       }
+
+      // TODO: display sensor data
 
       // Display FPS
       ImGui::Text("GUI Rendering Performance: %.3f ms/frame (%.1f FPS)",
@@ -73,10 +82,12 @@ public:
     ImGui::End();
   }
 
-  void set_frame_stats(const FrameStats &stats) {
+  void set_frame_stats(const FrameStats &stats)
+  {
     static int cnt = 0;
     constexpr int every = 64;
-    if (cnt++ % every == 0) {
+    if (cnt++ % every == 0)
+    {
       frame_stats = stats;
     }
   }
@@ -86,7 +97,8 @@ private:
   char host[bufsz]{};
   char service[bufsz]{};
   std::optional<Address> &current_address;
-  Texture &camera_view;
+  const Texture &camera_view;
+  const SensorData &sensor_data;
   FrameStats frame_stats;
 };
 

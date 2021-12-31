@@ -183,11 +183,21 @@ public:
   }
 };
 
+struct MessageHeader
+{
+  uint64_t type;
+  int64_t size;
+};
+MessageHeader generate_message_header(uint8_t type)
+{
+  return {
+      type, time(nullptr)};
+}
+
 int main()
 {
   asio::io_context ctx;
   ImageStorage image{1385, 1080};
-
   NFD::Init();
   ImageLoader loader{1, 4200, show_pick_folder_dialog()};
 
@@ -196,15 +206,32 @@ int main()
   ip::address receiver;
   TCPConnector connector{ctx, receiver};
 
+  MessageHeader header;
+  int frame_idx;
+  float rand_val;
+  int type = 0;
   UDPTransmitter transmitter{ctx, receiver, [&]()
                              {
-                               const int frame_idx = loader.load_next_frame(image);
-                               for (int quality = 50; !compress_image(compressed, image, quality);)
-                                 quality /= 2;
-                               return std::array{
-                                  asio::buffer(&frame_idx, sizeof(frame_idx)),
-                                  asio::buffer(static_cast<const char*>(compressed.data.get()), compressed.stored_size)
-                                };
+                               header = generate_message_header(type);
+                               if (type == 0)
+                               {
+                                 frame_idx = loader.load_next_frame(image);
+                                 for (int quality = 50; !compress_image(compressed, image, quality);)
+                                   quality /= 2;
+                                 return std::vector{
+                                     asio::buffer(&header, sizeof(header)),
+                                     asio::buffer(&frame_idx, sizeof(frame_idx)),
+                                     asio::buffer(compressed.data.get(), compressed.stored_size)};
+                               }
+                               else
+                               {
+                                 rand_val = rand() / static_cast<float>(RAND_MAX);
+                                 return std::vector{
+                                     asio::buffer(&header, sizeof(header)),
+                                     asio::buffer(&rand_val, sizeof(rand_val))};
+                               }
+
+                               ++type;
                              }};
 
   std::thread worker1{[&]

@@ -35,3 +35,13 @@ endif()
 # to use link with target asio
 add_library(Asio INTERFACE)
 target_include_directories(Asio INTERFACE asio/asio/include)
+
+# Add JPEG
+add_library(JPEG
+        jpeg-compressor/jpgd.cpp
+        jpeg-compressor/jpge.cpp
+)
+target_include_directories(JPEG PUBLIC jpeg-compressor)
+
+# Add Native File Dialog Extended
+add_subdirectory(nativefiledialog-extended)

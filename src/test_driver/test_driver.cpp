@@ -234,7 +234,7 @@ int main()
                                ++type;
                              }};
 
-  std::thread worker{[&]
+  std::thread worker1{[&]
                      { ctx.run(); }};
   ctx.run();
 

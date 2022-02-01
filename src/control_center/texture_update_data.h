@@ -21,7 +21,6 @@ private:
   TrippleBuffer<CompressedImage>::Storage compressed_data_storage;
   TrippleBuffer<CompressedImage> compressed_data;
   
-  // TODO: dedicated decoding thread
   void decompress(const CompressedImage& compressed) {
     int w, h, comps;
     jpgd::uint8 *pDecompressed = jpgd::decompress_jpeg_image_from_memory(

@@ -230,7 +230,7 @@ public:
 
     ImGui::Render();
 
-    ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+    ImVec4 clear_color = ImVec4(0.15f, 0.25f, 0.33f, 1.00f);
     SDL_SetRenderDrawColor(
         renderer, (Uint8)(clear_color.x * 255), (Uint8)(clear_color.y * 255),
         (Uint8)(clear_color.z * 255), (Uint8)(clear_color.w * 255));

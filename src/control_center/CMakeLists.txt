@@ -10,6 +10,8 @@ add_executable(control_center
     receiving_loop.h
     texture_update_data.h
     tripplebuffer.h
+    ringbuffer.h
+    sensor_data.h
 )
 target_link_libraries(control_center PRIVATE Imgui Implot Asio JPEG)
 target_compile_features(control_center PRIVATE cxx_std_20)

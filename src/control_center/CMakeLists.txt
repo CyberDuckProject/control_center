@@ -11,5 +11,5 @@ add_executable(control_center
     texture_update_data.h
     tripplebuffer.h
 )
-target_link_libraries(control_center PRIVATE Imgui Asio JPEG)
+target_link_libraries(control_center PRIVATE Imgui Implot Asio JPEG)
 target_compile_features(control_center PRIVATE cxx_std_20)

@@ -6,6 +6,7 @@
 #include <imgui_freetype.h>
 #include <imgui_impl_sdl.h>
 #include <imgui_impl_sdlrenderer.h>
+#include <implot.h>
 #include <memory>
 #include <stdexcept>
 
@@ -176,6 +177,9 @@ public:
     ImGui_ImplSDL2_InitForSDLRenderer(window);
     ImGui_ImplSDLRenderer_Init(renderer);
 
+    // Initialize ImPlot
+    ImPlot::CreateContext();
+
     // Get DPI
     const float dpi = 1.0f;
     // TODO: make dpi actually work
@@ -192,6 +196,7 @@ public:
   {
     ImGui_ImplSDLRenderer_Shutdown();
     ImGui_ImplSDL2_Shutdown();
+    ImPlot::DestroyContext();
     ImGui::DestroyContext();
 
     SDL_DestroyRenderer(renderer);

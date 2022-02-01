@@ -5,15 +5,19 @@
 
 enum class SensorType
 {
-    WaterTemperature = 1,
+    BEGIN = 1,
+    WaterTemperature = BEGIN,
     WaterTurbidity,
     Dust,
     AtmosphericPressure,
     AtmosphericTemperature,
-    AtmosphericHumidity
+    AtmosphericHumidity,
+    END
 };
 class SensorData
 {
+private:
+    inline static constexpr size_t sensor_count = static_cast<size_t>(SensorType::END) - static_cast<size_t>(SensorType::BEGIN);
 public:
     void add_reading(SensorType sensor, int64_t time, float reading)
     {

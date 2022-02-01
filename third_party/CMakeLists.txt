@@ -37,6 +37,19 @@ if (WIN32 AND NOT (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC"))
         target_link_libraries(Imgui PUBLIC "Imm32.lib")
 endif()
 
+# Add ImPlot
+# to use link with target Implot
+add_library(Implot
+        implot/implot.cpp
+        implot/implot_items.cpp
+        implot/implot_demo.cpp
+        )
+target_include_directories(Implot PUBLIC
+        implot
+        )
+target_link_libraries(Implot PUBLIC Imgui)
+target_compile_features(Implot PUBLIC cxx_std_17)
+
 # Add Asio
 # to use link with target asio
 add_library(Asio INTERFACE)

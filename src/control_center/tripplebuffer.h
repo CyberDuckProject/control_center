@@ -30,30 +30,35 @@ public:
     // For optimal performance, the three buffers can be stored on their own
     // cache lines. This will prevent false-shering between the producer and
     // the consumer thread
-    struct Storage {
-         alignas(hardware_destructive_interference_size) T buffer0;
-         alignas(hardware_destructive_interference_size) T buffer1;
-         alignas(hardware_destructive_interference_size) T buffer2;
+    struct Storage
+    {
+        alignas(hardware_destructive_interference_size) T buffer0;
+        alignas(hardware_destructive_interference_size) T buffer1;
+        alignas(hardware_destructive_interference_size) T buffer2;
     };
+
 private:
     // pointers share a cache line as always a pair of them is changed together
     // TODO: determine wheather keeping on separate cache lines is faster
-    T* back;
-    std::atomic<T*> middle;
-    T* front;
+    T *back;
+    std::atomic<T *> middle;
+    T *front;
+
 public:
     // producer thread interface
-    [[nodiscard]] T& get_back_buffer() noexcept { return *back; };
-    [[nodiscard]] const T& get_back_buffer() const noexcept { return *back; };
+    [[nodiscard]] T &get_back_buffer() noexcept { return *back; };
+    [[nodiscard]] const T &get_back_buffer() const noexcept { return *back; };
     void swap_back() noexcept { back = middle.exchange(back, std::memory_order_release); };
+
 public:
     // consumer thread interface
-    [[nodiscard]] T& get_front_buffer() noexcept { return *front; };
-    [[nodiscard]] const T& get_front_buffer() const noexcept { return *front; };
+    [[nodiscard]] T &get_front_buffer() noexcept { return *front; };
+    [[nodiscard]] const T &get_front_buffer() const noexcept { return *front; };
     void swap_front() noexcept { front = middle.exchange(front, std::memory_order_acquire); };
+
 public:
-    TrippleBuffer(Storage& storage) : TrippleBuffer{storage.buffer0, storage.buffer1, storage.buffer2} {};
-    TrippleBuffer(T& back, T& middle, T& front) : back{&back}, middle{&middle}, front{&front} {}
+    TrippleBuffer(Storage &storage) : TrippleBuffer{storage.buffer0, storage.buffer1, storage.buffer2} {};
+    TrippleBuffer(T &back, T &middle, T &front) : back{&back}, middle{&middle}, front{&front} {}
 };
 
 #endif

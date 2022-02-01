@@ -25,7 +25,7 @@ private:
 #error Unsupoorted Platform
 #endif
     float dpi;
-    if(!SDL_GetDisplayDPI(SDL_GetWindowDisplayIndex(window), nullptr, &dpi, nullptr))
+    if (!SDL_GetDisplayDPI(SDL_GetWindowDisplayIndex(window), nullptr, &dpi, nullptr))
       return dpi / defaultDPI;
     return 1.0f; // could not get dpi
   }
@@ -178,6 +178,7 @@ public:
 
     // Get DPI
     const float dpi = 1.0f;
+    // TODO: make dpi actually work
 
     // Load ImGui font
     ImFontConfig cfg;

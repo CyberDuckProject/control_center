@@ -5,7 +5,8 @@
 
 #include "address.h"
 
-class Transmitter {
+class Transmitter
+{
   using tcp = asio::ip::tcp;
   tcp::resolver resolver;
   tcp::socket socket;
@@ -15,21 +16,28 @@ public:
 
   template <typename F>
   void async_connect(std::string_view host, std::string_view service,
-                     F &&handler) {
+                     F &&handler)
+  {
     socket.close();
     resolver.cancel();
     resolver.async_resolve(
         host, service,
-        [&](const asio::error_code &ec, tcp::resolver::results_type results) {
-          if (!ec) {
+        [&](const asio::error_code &ec, tcp::resolver::results_type results)
+        {
+          if (!ec)
+          {
             asio::async_connect(socket, results, handler);
-          } else {
+          }
+          else
+          {
             handler(ec, tcp::endpoint{});
           }
         });
   }
   Address remote_address() const { return Address{socket.remote_endpoint()}; }
-  template <typename T, typename F> void async_send(const T &pod, F &&handler) {
+  template <typename T, typename F>
+  void async_send(const T &pod, F &&handler)
+  {
     asio::async_write(socket, asio::buffer(&pod, sizeof(pod)), handler);
   }
 };

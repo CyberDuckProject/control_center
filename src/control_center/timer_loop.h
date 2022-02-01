@@ -16,7 +16,7 @@ private:
   F on_run;
 
 public:
-  TimerLoop(asio::steady_timer &&timer, const duration &interval, F&& on_run)
+  TimerLoop(asio::steady_timer &&timer, const duration &interval, F &&on_run)
       : timer{std::move(timer)}, interval{interval}, on_run{std::move(on_run)}
   {
     (*this)({});

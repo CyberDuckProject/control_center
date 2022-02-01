@@ -49,7 +49,8 @@ int main(int, char **)
       {
         return std::array{asio::buffer(&current_frame_number, sizeof(current_frame_number)), update_data.begin_receiving_data()};
       },
-      [&update_data](asio::error_code ec, std::size_t bytes_received, const udp::endpoint & /*sender*/) {
+      [&update_data](asio::error_code ec, std::size_t bytes_received, const udp::endpoint & /*sender*/)
+      {
         update_data.end_receiving_data(bytes_received);
       }};
 

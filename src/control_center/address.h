@@ -22,6 +22,7 @@ struct Address
 
 constexpr const char *const MOTOR_TCP_PORT = "1333";
 constexpr int VIDEO_UDP_PORT = 1512;
+constexpr int SENSOR_UDP_PORT = 1666;
 
 std::ostream &operator<<(std::ostream &out, const Address &adr)
 {

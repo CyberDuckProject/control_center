@@ -42,7 +42,7 @@ int main(int, char **)
   UI ui{address, camera_view, sensor_data};
 
   TextureUpdateData update_data{camera_view};
-  int current_frame_number{};
+  int current_frame_number{}; // TODO: wrap in frame stats
   ReceivingLoop video_receiving_loop{
       udp::socket{ctx, udp::endpoint{asio::ip::address_v4::any(), VIDEO_UDP_PORT}},
       [&current_frame_number, &update_data]()
@@ -52,6 +52,23 @@ int main(int, char **)
       [&update_data](asio::error_code ec, std::size_t bytes_received, const udp::endpoint & /*sender*/)
       {
         update_data.end_receiving_data(bytes_received);
+      }};
+
+  struct Message // TODO: refactor and wrap somewhere
+  {
+    uint8_t code;
+    uint64_t timestamp;
+    float value;
+  } message;
+  ReceivingLoop sensor_receiving_loop{
+      udp::socket{ctx, udp::endpoint{asio::ip::address_v4::any(), SENSOR_UDP_PORT}},
+      [&message]()
+      {
+        return asio::buffer(&message, sizeof(message));
+      },
+      [&message, &sensor_data](asio::error_code ec, std::size_t bytes_received, const udp::endpoint & /*sender*/)
+      {
+        sensor_data.add_reading(static_cast<SensorType>(message.code), message.timestamp, message.value);
       }};
 
   Controller controller;

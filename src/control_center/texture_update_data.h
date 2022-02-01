@@ -67,11 +67,11 @@ public:
     compressed_data.get_front_buffer().size = 0;
     return decompressed.get();
   }
-  auto get_compressed_buffer()
+  auto begin_receiving_data()
   {
     return asio::buffer(compressed_data.get_back_buffer().data.get(), compressed_data_cap);
   }
-  void set_recieved_data(size_t compressed_bytes)
+  void end_receiving_data(size_t compressed_bytes)
   {
     compressed_data.get_back_buffer().size = compressed_bytes;
     compressed_data.swap_back();

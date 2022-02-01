@@ -4,6 +4,7 @@
 
 #include "gui_context.h"
 #include "motor_data.h"
+#include "texture_update_data.h"
 #include "receiving_loop.h"
 #include "timer_loop.h"
 #include "transmitter.h"
@@ -11,6 +12,7 @@
 #include "ui.h"
 
 using tcp = asio::ip::tcp;
+using udp = asio::ip::udp;
 
 int main(int, char **)
 {
@@ -40,7 +42,16 @@ int main(int, char **)
   UI ui{address, camera_view, sensor_data};
 
   TextureUpdateData update_data{camera_view};
-  ReceivingLoop receiving_loop{ctx, update_data, sensor_data};
+  int current_frame_number{};
+  ReceivingLoop video_receiving_loop{
+      udp::socket{ctx, udp::endpoint{asio::ip::address_v4::any(), VIDEO_UDP_PORT}},
+      [&current_frame_number, &update_data]()
+      {
+        return std::array{asio::buffer(&current_frame_number, sizeof(current_frame_number)), update_data.begin_receiving_data()};
+      },
+      [&update_data](asio::error_code ec, std::size_t bytes_received, const udp::endpoint & /*sender*/) {
+        update_data.end_receiving_data(bytes_received);
+      }};
 
   Controller controller;
 
@@ -72,7 +83,7 @@ int main(int, char **)
 
       gui_ctx.update_texture(camera_view, update_data.data());
 
-      ui.set_frame_stats(receiving_loop.last_frame_stats());
+      //ui.set_frame_stats(receiving_loop.last_frame_stats()); TODO: reimplement frame stats
 
       gui_ctx.render([&ui, &motor_data, &transmitter]
                      {

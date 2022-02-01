@@ -157,7 +157,7 @@ public:
     window = SDL_CreateWindow(
         "CyberDuck Control Center", SDL_WINDOWPOS_CENTERED,
         SDL_WINDOWPOS_CENTERED, 1280, 720,
-        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     if (!window)
       throw std::runtime_error("Couldn't create SDL window");
     // Initialize SDL Renderer

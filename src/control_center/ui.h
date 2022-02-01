@@ -20,17 +20,8 @@ public:
   template <typename F>
   void update(MotorData &motor_data, F &&reconnect_handler)
   {
-    constexpr auto wnd_flags =
-        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar;
-    if (ImGui::Begin("Control Center", nullptr, wnd_flags))
+    if (ImGui::Begin("Control Center"))
     {
-      ImGui::SetWindowPos({0, 0});
-      const auto wnd_sz = ImVec2{
-          ImGui::GetWindowViewport()->Size.x * ImGui::GetWindowViewport()->DpiScale,
-          ImGui::GetWindowViewport()->Size.y * ImGui::GetWindowViewport()->DpiScale};
-      ImGui::SetWindowSize(wnd_sz);
-
       // Update address
       {
         const bool changed = ImGui::InputText("Host", host, bufsz);
@@ -76,9 +67,10 @@ public:
       ImGui::Text("Network Performance: %.3f%% packet size used (%.3f Mbps)",
                   frame_stats.framesize / max_packet_sz * 100.0f,
                   fps * frame_stats.framesize * bytes_to_megabits);
-
-      ImGui::Image(camera_view.handle(), ImGui::GetContentRegionAvail());
     }
+    ImGui::End();
+    if (ImGui::Begin("Camera View"))
+      ImGui::Image(camera_view.handle(), ImGui::GetContentRegionAvail());
     ImGui::End();
   }
 

@@ -30,7 +30,7 @@ struct ImageStorage
                                               data{std::make_unique<Pixel[]>(width * height)}
   {
   }
-  ImageStorage(const ImageStorage& other) : ImageStorage{other.width, other.height} {}
+  ImageStorage(const ImageStorage &other) : ImageStorage{other.width, other.height} {}
 };
 std::string show_pick_folder_dialog()
 {
@@ -99,8 +99,9 @@ bool compress_image(ImageCompressedStorage &out, const ImageStorage &image, size
   return jpge::compress_image_to_jpeg_file_in_memory(
       out.data.get(), out.stored_size, image.width, image.height, 3, reinterpret_cast<jpge::uint8 *>(image.data.get()), params);
 }
-constexpr int TCP_PORT = 1333;
-constexpr int UDP_PORT = 1512;
+constexpr int MOTOR_TCP_PORT = 1333;
+constexpr int VIDEO_UDP_PORT = 1512;
+constexpr int SENSOR_UDP_PORT = 1666;
 class TCPConnector
 {
   tcp::acceptor acceptor;
@@ -165,11 +166,12 @@ class UDPTransmitter
 {
   ip::address &receiver;
   udp::socket socket;
+  const uint16_t port;
   TransmissionGenerator generator;
 
   void transmit()
   {
-    socket.async_send_to(generator(), {receiver, UDP_PORT}, [&](asio::error_code ec, std::size_t b)
+    socket.async_send_to(generator(), {receiver, port}, [&](asio::error_code ec, std::size_t b)
                          {
                            if (ec)
                              std::cerr << " ec: " << ec.message() << std::endl;
@@ -178,8 +180,9 @@ class UDPTransmitter
   }
 
 public:
-  UDPTransmitter(asio::io_context &ctx, ip::address &receiver, TransmissionGenerator &&generator) : receiver{receiver},
+  UDPTransmitter(asio::io_context &ctx, ip::address &receiver, uint16_t port, TransmissionGenerator &&generator) : receiver{receiver},
                                                                                                     socket{ctx},
+                                                                                                    port{port},
                                                                                                     generator{std::move(generator)}
   {
     socket.open(udp::v4());
@@ -208,43 +211,24 @@ int main()
   ip::address receiver;
   TCPConnector connector{ctx, receiver};
 
-  auto send = [frame_idx = 0,
-               rand_val = 0.0f,
-               type = 0,
-               now = std::chrono::steady_clock::time_point{},
-               header = MessageHeader{},
-               &loader,
-               image = ImageStorage{1385, 1080},
-               compressed = ImageCompressedStorage{1385, 1080}]() mutable
-  {
-    auto new_now = std::chrono::steady_clock::now();
-    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(new_now - now).count() << "ms\n";
-    now = new_now;
-
-    header = generate_message_header(type);
-    //++type;
-    //type %= 7;
-    if (type == 0)
-    {
-      frame_idx = loader.load_next_frame(image);
-      for (int quality = 50; !compress_image(compressed, image, quality);)
-        quality /= 2;
-      return std::vector{
-          //asio::buffer(&header, sizeof(header)),
-          asio::buffer(&frame_idx, sizeof(frame_idx)),
-          asio::buffer(compressed.data.get(), compressed.stored_size)};
-    }
-    else
-    {
-      rand_val = rand() / static_cast<float>(RAND_MAX);
-      return std::vector{
-          asio::buffer(&header, sizeof(header)),
-          asio::buffer(&rand_val, sizeof(rand_val))};
-    }
-  };
-  auto send2 = send;
-  UDPTransmitter transmitter{ctx, receiver, std::move(send)};
-  UDPTransmitter transmitter2{ctx, receiver, std::move(send2)};
+  UDPTransmitter video_transmitter{ctx, receiver, VIDEO_UDP_PORT, [frame_idx = 0, &loader, image = ImageStorage{1385, 1080}, compressed = ImageCompressedStorage{1385, 1080}]() mutable
+                                   {
+                                     frame_idx = loader.load_next_frame(image);
+                                     for (int quality = 50; !compress_image(compressed, image, quality);)
+                                       quality /= 2;
+                                     return std::array{
+                                         asio::buffer(&frame_idx, sizeof(frame_idx)),
+                                         asio::buffer(compressed.data.get(), compressed.stored_size)};
+                                   }};
+  UDPTransmitter sensor_transmitter{ctx, receiver, SENSOR_UDP_PORT, [rand_val = 0.0f, type = 0, now = std::chrono::steady_clock::time_point{}, header = MessageHeader{}]() mutable
+                                    {
+                                      type = (type + 1) % 6;
+                                      header = generate_message_header(type + 1);
+                                      rand_val = rand() / static_cast<float>(RAND_MAX);
+                                      return std::array{
+                                          asio::buffer(&header, sizeof(header)),
+                                          asio::buffer(&rand_val, sizeof(rand_val))};
+                                    }};
 
   std::thread worker1{[&]
                       { ctx.run(); }};

@@ -41,7 +41,6 @@ public:
   void on_received_frame(asio::error_code ec, std::size_t bytes_received)
   {
     update_data.set_recieved_data(bytes_received);
-    update_data.data();
 
     const auto now = std::chrono::steady_clock::now();
     frame_stats.frametime = now - frame_begin_recv;

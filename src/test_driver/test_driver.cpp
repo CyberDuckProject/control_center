@@ -4,6 +4,8 @@
 #include <jpge.h> // jpeg compression
 #include <sstream>
 #include <filesystem>
+#include <chrono>
+#include <atomic>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h> // loading images from disk
@@ -28,6 +30,7 @@ struct ImageStorage
                                               data{std::make_unique<Pixel[]>(width * height)}
   {
   }
+  ImageStorage(const ImageStorage& other) : ImageStorage{other.width, other.height} {}
 };
 std::string show_pick_folder_dialog()
 {
@@ -38,21 +41,22 @@ std::string show_pick_folder_dialog()
 }
 class ImageLoader
 {
-  size_t current_frame;
-  size_t frame_count;
-  std::string base_path;
+  inline static std::atomic<size_t> current_frame = 1;
+  const size_t frame_count;
+  const std::string base_path;
 
 public:
-  ImageLoader(size_t current_frame, size_t frame_count, const std::string &base_path) : current_frame{current_frame},
-                                                                                        frame_count{frame_count},
-                                                                                        base_path{base_path}
+  ImageLoader(size_t frame_count, const std::string &base_path) : frame_count{frame_count},
+                                                                  base_path{base_path}
   {
   }
 
   size_t load_next_frame(ImageStorage &out)
   {
+    const size_t current_frame_val = current_frame.fetch_add(1) % frame_count;
+
     std::stringstream ss;
-    ss << std::setw(4) << std::setfill('0') << current_frame;
+    ss << std::setw(4) << std::setfill('0') << current_frame_val;
     std::string s = ss.str();
 
     auto path = (base_path + '/' + s + ".png");
@@ -67,21 +71,22 @@ public:
     memcpy(static_cast<void *>(out.data.get()), read_image, out.width * out.height * 3);
     stbi_image_free(read_image);
 
-    ++current_frame;
-    current_frame %= frame_count;
-    return current_frame;
+    return current_frame_val;
   }
 };
-constexpr size_t MAX_COMPRESSED_IMG_SZ = 65000;
+constexpr size_t MAX_COMPRESSED_IMG_SZ = 65001;
 struct ImageCompressedStorage
 {
   const size_t capacity;
   int stored_size;
   std::unique_ptr<char[]> data;
 
-  ImageCompressedStorage(const ImageStorage &image) : capacity{std::min(image.width * image.height * 3, MAX_COMPRESSED_IMG_SZ)},
-                                                      stored_size{0},
-                                                      data{std::make_unique<char[]>(capacity)}
+  ImageCompressedStorage(size_t width, size_t height) : capacity{std::min(width * height * 3, MAX_COMPRESSED_IMG_SZ)},
+                                                        stored_size{0},
+                                                        data{std::make_unique<char[]>(capacity)}
+  {
+  }
+  ImageCompressedStorage(const ImageCompressedStorage &other) : ImageCompressedStorage{1, other.capacity / 3}
   {
   }
 };
@@ -175,7 +180,7 @@ class UDPTransmitter
 public:
   UDPTransmitter(asio::io_context &ctx, ip::address &receiver, TransmissionGenerator &&generator) : receiver{receiver},
                                                                                                     socket{ctx},
-                                                                                                    generator{generator}
+                                                                                                    generator{std::move(generator)}
   {
     socket.open(udp::v4());
     socket.set_option(asio::socket_base::broadcast(true));
@@ -197,45 +202,52 @@ MessageHeader generate_message_header(uint8_t type)
 int main()
 {
   asio::io_context ctx;
-  ImageStorage image{1385, 1080};
   NFD::Init();
-  ImageLoader loader{1, 4200, show_pick_folder_dialog()};
-
-  ImageCompressedStorage compressed{image};
+  ImageLoader loader{4200, show_pick_folder_dialog()};
 
   ip::address receiver;
   TCPConnector connector{ctx, receiver};
 
-  MessageHeader header;
-  int frame_idx;
-  float rand_val;
-  int type = 0;
-  UDPTransmitter transmitter{ctx, receiver, [&]()
-                             {
-                               header = generate_message_header(type);
-                               if (type == 0)
-                               {
-                                 frame_idx = loader.load_next_frame(image);
-                                 for (int quality = 50; !compress_image(compressed, image, quality);)
-                                   quality /= 2;
-                                 return std::vector{
-                                     asio::buffer(&header, sizeof(header)),
-                                     asio::buffer(&frame_idx, sizeof(frame_idx)),
-                                     asio::buffer(compressed.data.get(), compressed.stored_size)};
-                               }
-                               else
-                               {
-                                 rand_val = rand() / static_cast<float>(RAND_MAX);
-                                 return std::vector{
-                                     asio::buffer(&header, sizeof(header)),
-                                     asio::buffer(&rand_val, sizeof(rand_val))};
-                               }
+  auto send = [frame_idx = 0,
+               rand_val = 0.0f,
+               type = 0,
+               now = std::chrono::steady_clock::time_point{},
+               header = MessageHeader{},
+               &loader,
+               image = ImageStorage{1385, 1080},
+               compressed = ImageCompressedStorage{1385, 1080}]() mutable
+  {
+    auto new_now = std::chrono::steady_clock::now();
+    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(new_now - now).count() << "ms\n";
+    now = new_now;
 
-                               ++type;
-                             }};
+    header = generate_message_header(type);
+    //++type;
+    //type %= 7;
+    if (type == 0)
+    {
+      frame_idx = loader.load_next_frame(image);
+      for (int quality = 50; !compress_image(compressed, image, quality);)
+        quality /= 2;
+      return std::vector{
+          //asio::buffer(&header, sizeof(header)),
+          asio::buffer(&frame_idx, sizeof(frame_idx)),
+          asio::buffer(compressed.data.get(), compressed.stored_size)};
+    }
+    else
+    {
+      rand_val = rand() / static_cast<float>(RAND_MAX);
+      return std::vector{
+          asio::buffer(&header, sizeof(header)),
+          asio::buffer(&rand_val, sizeof(rand_val))};
+    }
+  };
+  auto send2 = send;
+  UDPTransmitter transmitter{ctx, receiver, std::move(send)};
+  UDPTransmitter transmitter2{ctx, receiver, std::move(send2)};
 
   std::thread worker1{[&]
-                     { ctx.run(); }};
+                      { ctx.run(); }};
   ctx.run();
 
   return 0;

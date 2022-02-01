@@ -5,21 +5,23 @@
 #include "gui_context.h"
 #include "motor_data.h"
 #include "receiving_loop.h"
-#include "transmission_loop.h"
+#include "timer_loop.h"
 #include "transmitter.h"
 #include "sensor_data.h"
 #include "ui.h"
 
 using tcp = asio::ip::tcp;
 
-int main(int, char **) {
+int main(int, char **)
+{
   asio::io_context ctx;
 
   Transmitter transmitter{ctx};
   MotorData motor_data{};
-  asio::steady_timer timer{ctx};
-  TransmissionLoop transmission_loop{transmitter, timer, motor_data,
-                                     std::chrono::milliseconds{100}};
+  TimerLoop transmission_loop{asio::steady_timer{ctx}, std::chrono::milliseconds{100}, [&transmitter, &motor_data]()
+                              {
+                                transmitter.async_send(motor_data, [](...) {});
+                              }};
 
   // This has to be static and the reason why is rather interesting.
   // This address is changed inside the transmitter.async_connect callback.
@@ -46,46 +48,55 @@ int main(int, char **) {
   {
     asio::io_context::work work{ctx};
     const int worker_count = 1;
-    for (int i = 0; i < worker_count; ++i) {
-      workers.emplace_back([&ctx] {
-        std::cout << "began!\n";
-        ctx.run();
-        std::cout << "done!\n";
-      });
+    for (int i = 0; i < worker_count; ++i)
+    {
+      workers.emplace_back([&ctx]
+                           {
+                             std::cout << "began!\n";
+                             ctx.run();
+                             std::cout << "done!\n";
+                           });
     }
 
-    while (!gui_ctx.should_close()) {
-      gui_ctx.pollEvents([&motor_data, &controller](const SDL_Event &event) {
-        if (event.type == SDL_CONTROLLERAXISMOTION) {
-          motor_data.left_speed = std::clamp(-controller.left_y(), 0.0f, 1.0f);
-          motor_data.right_speed =
-              std::clamp(-controller.right_y(), 0.0f, 1.0f);
-        }
-      });
+    while (!gui_ctx.should_close())
+    {
+      gui_ctx.pollEvents([&motor_data, &controller](const SDL_Event &event)
+                         {
+                           if (event.type == SDL_CONTROLLERAXISMOTION)
+                           {
+                             motor_data.left_speed = std::clamp(-controller.left_y(), 0.0f, 1.0f);
+                             motor_data.right_speed =
+                                 std::clamp(-controller.right_y(), 0.0f, 1.0f);
+                           }
+                         });
 
       gui_ctx.update_texture(camera_view, update_data.data());
 
       ui.set_frame_stats(receiving_loop.last_frame_stats());
 
-      gui_ctx.render([&ui, &motor_data, &transmitter] {
-        ui.update(motor_data, [&transmitter, &ui](std::string_view host,
-                                                  std::string_view service) {
-          address = std::nullopt;
-          transmitter.async_connect(
-              host, service,
-              [](asio::error_code ec, const tcp::endpoint &endpoint) {
-                if (!ec)
-                  address = Address{endpoint};
-                else
-                  address = std::nullopt;
-              });
-        });
-      });
+      gui_ctx.render([&ui, &motor_data, &transmitter]
+                     {
+                       ui.update(motor_data, [&transmitter, &ui](std::string_view host,
+                                                                 std::string_view service)
+                                 {
+                                   address = std::nullopt;
+                                   transmitter.async_connect(
+                                       host, service,
+                                       [](asio::error_code ec, const tcp::endpoint &endpoint)
+                                       {
+                                         if (!ec)
+                                           address = Address{endpoint};
+                                         else
+                                           address = std::nullopt;
+                                       });
+                                 });
+                     });
     }
   }
 
   ctx.stop(); // TODO: this shouldn't be neccesary (~work should suffice)
-  for (auto &worker : workers) {
+  for (auto &worker : workers)
+  {
     worker.join();
   }
 

@@ -6,7 +6,7 @@ add_executable(control_center
     gui_context.h
     controller.h
     address.h
-    transmission_loop.h
+    timer_loop.h
     receiving_loop.h
     texture_update_data.h
     tripplebuffer.h

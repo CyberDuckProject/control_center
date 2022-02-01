@@ -37,7 +37,7 @@ public:
 
         ImGui::BeginDisabled();
         ImGui::InputText("Service", service, bufsz);
-        strcpy(service, CYBERDUCK_SERVICE);
+        strcpy(service, MOTOR_TCP_PORT);
         ImGui::EndDisabled();
 
         if (changed)
@@ -49,7 +49,7 @@ public:
         {
           std::stringstream temp{};
           temp << *current_address;
-          ImGui::Text(("Connected to " + temp.str()).c_str());
+          ImGui::Text("%s", ("Connected to " + temp.str()).c_str());
         }
         else
         {

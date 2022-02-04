@@ -9,20 +9,19 @@
 
 #include "address.h"
 #include "frame_stats.h"
+#include "gui_context.h"
 #include "motor_data.h"
 #include "sensor_data.h"
 
-class UI
-{
+class UI {
 public:
-  UI(std::optional<Address> &address, const Texture &img, const SensorData &sensor_data)
+  UI(std::optional<Address> &address, const Texture &img,
+     const SensorData &sensor_data)
       : current_address{address}, camera_view{img}, sensor_data{sensor_data} {}
 
   template <typename F>
-  void update(MotorData &motor_data, F &&reconnect_handler)
-  {
-    if (ImGui::Begin("Control Center"))
-    {
+  void update(MotorData &motor_data, F &&reconnect_handler) {
+    if (ImGui::Begin("Control Center")) {
       // Update address
       {
         const bool changed = ImGui::InputText("Host", host, bufsz);
@@ -32,19 +31,15 @@ public:
         strcpy(service, MOTOR_TCP_PORT);
         ImGui::EndDisabled();
 
-        if (changed)
-        {
+        if (changed) {
           reconnect_handler(std::string_view{host}, std::string_view{service});
         }
 
-        if (current_address.has_value())
-        {
+        if (current_address.has_value()) {
           std::stringstream temp{};
           temp << *current_address;
           ImGui::Text("%s", ("Connected to " + temp.str()).c_str());
-        }
-        else
-        {
+        } else {
           ImGui::Text("Connecting...");
         }
       }
@@ -73,19 +68,20 @@ public:
       ImGui::Image(camera_view.handle(), ImGui::GetContentRegionAvail());
     ImGui::End();
 
-    if (ImGui::Begin("Sensor Data"))
-    {
-      static ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV |
-                                     ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable;
-      if (ImGui::BeginTable("##sensor_readings", 3, flags, ImVec2(-1, 0)))
-      {
-        ImGui::TableSetupColumn("Sensor", ImGuiTableColumnFlags_WidthFixed, 75.0f);
-        ImGui::TableSetupColumn("Reading", ImGuiTableColumnFlags_WidthFixed, 75.0f);
+    if (ImGui::Begin("Sensor Data")) {
+      static ImGuiTableFlags flags =
+          ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV |
+          ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable |
+          ImGuiTableFlags_Reorderable;
+      if (ImGui::BeginTable("##sensor_readings", 3, flags, ImVec2(-1, 0))) {
+        ImGui::TableSetupColumn("Sensor", ImGuiTableColumnFlags_WidthFixed,
+                                75.0f);
+        ImGui::TableSetupColumn("Reading", ImGuiTableColumnFlags_WidthFixed,
+                                75.0f);
         ImGui::TableSetupColumn("Graph");
         ImGui::TableHeadersRow();
         ImPlot::PushColormap(ImPlotColormap_Cool);
-        for (int row = 0; row < sensor_data.sensor_count; row++)
-        {
+        for (int row = 0; row < sensor_data.sensor_count; row++) {
           ImGui::TableNextRow();
           ImGui::TableSetColumnIndex(0);
           ImGui::Text("Sensor %d", row);
@@ -95,13 +91,20 @@ public:
           ImGui::PushID(row);
 
           ImPlot::PushStyleVar(ImPlotStyleVar_PlotPadding, ImVec2(0, 0));
-          if (ImPlot::BeginPlot("##graph", ImVec2(-1, 35), ImPlotFlags_CanvasOnly | ImPlotFlags_NoChild))
-          {
-            ImPlot::SetupAxes(0, 0, ImPlotAxisFlags_NoDecorations, ImPlotAxisFlags_NoDecorations);
-            ImPlot::SetupAxesLimits(0, sensor_data[row].size() - 1, sensor_data.min_val(row), sensor_data.max_val(row), ImGuiCond_Always);
-            ImPlot::PushStyleColor(ImPlotCol_Line, ImPlot::GetColormapColor(row));
-            ImPlot::PlotLine("##graph", sensor_data[row].first_range().data(), sensor_data[row].first_range().size(), 1, 0, 0);
-            ImPlot::PlotLine("##graph", sensor_data[row].second_range().data(), sensor_data[row].second_range().size(), 1, sensor_data[row].first_range().size(), 0);
+          if (ImPlot::BeginPlot("##graph", ImVec2(-1, 35),
+                                ImPlotFlags_CanvasOnly | ImPlotFlags_NoChild)) {
+            ImPlot::SetupAxes(0, 0, ImPlotAxisFlags_NoDecorations,
+                              ImPlotAxisFlags_NoDecorations);
+            ImPlot::SetupAxesLimits(0, sensor_data[row].size() - 1,
+                                    sensor_data.min_val(row),
+                                    sensor_data.max_val(row), ImGuiCond_Always);
+            ImPlot::PushStyleColor(ImPlotCol_Line,
+                                   ImPlot::GetColormapColor(row));
+            ImPlot::PlotLine("##graph", sensor_data[row].first_range().data(),
+                             sensor_data[row].first_range().size(), 1, 0, 0);
+            ImPlot::PlotLine("##graph", sensor_data[row].second_range().data(),
+                             sensor_data[row].second_range().size(), 1,
+                             sensor_data[row].first_range().size(), 0);
             ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.25f);
             ImPlot::PopStyleVar();
             ImPlot::PopStyleColor();
@@ -117,12 +120,10 @@ public:
     ImGui::End();
   }
 
-  void set_frame_stats(const FrameStats &stats)
-  {
+  void set_frame_stats(const FrameStats &stats) {
     static int cnt = 0;
     constexpr int every = 64;
-    if (cnt++ % every == 0)
-    {
+    if (cnt++ % every == 0) {
       frame_stats = stats;
     }
   }

@@ -9,3 +9,9 @@ build/
 
 # macOS system files
 .DS_Store
+
+# Clangd cache
+.cache/
+
+# Imgui data
+imgui.ini

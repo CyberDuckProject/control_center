@@ -3,8 +3,7 @@
 
 #include <chrono>
 
-struct FrameStats
-{
+struct FrameStats {
   std::chrono::steady_clock::duration frametime;
   size_t framesize;
 };

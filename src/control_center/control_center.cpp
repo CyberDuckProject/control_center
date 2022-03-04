@@ -77,6 +77,8 @@ int main(int, char **) {
         sensor_data.add_reading(SensorType::WaterTurbidity, 0,
                                 message.turbidity);
         sensor_data.add_reading(SensorType::Dust, 0, message.dust);
+        sensor_data.add_reading(SensorType::BatteryVoltage, 0,
+                                message.battery_voltage);
         sensor_data.add_reading(SensorType::AtmosphericPressure, 0,
                                 message.pressure);
         sensor_data.add_reading(SensorType::AtmosphericTemperature, 0,

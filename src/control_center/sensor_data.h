@@ -12,6 +12,7 @@ enum class SensorType {
   AtmosphericPressure,
   AtmosphericTemperature,
   AtmosphericHumidity,
+  BatteryVoltage,
   END
 };
 
@@ -28,10 +29,61 @@ public:
     return data[idx];
   }
   float min_val(size_t idx) const noexcept {
-    return 0.0f; // TODO: return actual value
+    switch (idx) {
+    case 0:
+      return 20.0f;
+    case 1:
+      return 0.0f;
+    case 2:
+      return 80.0f;
+    case 3:
+      return 100700.0f;
+    case 4:
+      return 23.0f;
+    case 5:
+      return 31.0f;
+    case 6:
+      return 0.0f;
+    }
+    return 0.0f;
   }
   float max_val(size_t idx) const noexcept {
-    return 1.0f; // TODO: return actual value
+    switch (idx) {
+    case 0:
+      return 22.0f;
+    case 1:
+      return 0.0f;
+    case 2:
+      return 105.0f;
+    case 3:
+      return 100800.0f;
+    case 4:
+      return 24.0f;
+    case 5:
+      return 32.0f;
+    case 6:
+      return 0.0f;
+    }
+    return 0.0f;
+  }
+  const char *name(size_t idx) const noexcept {
+    switch (idx) {
+    case 0:
+      return "Water Temperature";
+    case 1:
+      return "Water Turbidity";
+    case 2:
+      return "Dust";
+    case 3:
+      return "Atmospheric Pressure";
+    case 4:
+      return "Atmospheric Temperature";
+    case 5:
+      return "Humidity";
+    case 6:
+      return "Battery Voltage";
+    }
+    return nullptr;
   }
 
 private:

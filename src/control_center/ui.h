@@ -84,9 +84,12 @@ public:
         for (int row = 0; row < sensor_data.sensor_count; row++) {
           ImGui::TableNextRow();
           ImGui::TableSetColumnIndex(0);
-          ImGui::Text("Sensor %d", row);
+          ImGui::Text("%s", sensor_data.name(row));
           ImGui::TableSetColumnIndex(1);
-          ImGui::Text("XYZ");
+          if (!sensor_data[row].second_range().empty())
+            ImGui::Text("%f", sensor_data[row].second_range().back());
+          else
+            ImGui::Text("%f", sensor_data[row].first_range().back());
           ImGui::TableSetColumnIndex(2);
           ImGui::PushID(row);
 

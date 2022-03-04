@@ -56,11 +56,14 @@ int main(int, char **) {
         update_data.end_receiving_data(bytes_received);
       }};
 
-  struct Message // TODO: refactor and wrap somewhere
-  {
-    uint8_t code;
-    uint64_t timestamp;
-    float value;
+  struct Message { // TODO: refactor
+    float water_temperature;
+    float turbidity;
+    float dust;
+    float battery_voltage;
+    float pressure;
+    float temperature;
+    float humidity;
   } message;
   ReceivingLoop sensor_receiving_loop{
       udp::socket{ctx,
@@ -68,8 +71,18 @@ int main(int, char **) {
       [&message]() { return asio::buffer(&message, sizeof(message)); },
       [&message, &sensor_data](asio::error_code ec, std::size_t bytes_received,
                                const udp::endpoint & /*sender*/) {
-        sensor_data.add_reading(static_cast<SensorType>(message.code),
-                                message.timestamp, message.value);
+        // TODO: receive timestamp
+        sensor_data.add_reading(SensorType::WaterTemperature, 0,
+                                message.water_temperature);
+        sensor_data.add_reading(SensorType::WaterTurbidity, 0,
+                                message.turbidity);
+        sensor_data.add_reading(SensorType::Dust, 0, message.dust);
+        sensor_data.add_reading(SensorType::AtmosphericPressure, 0,
+                                message.pressure);
+        sensor_data.add_reading(SensorType::AtmosphericTemperature, 0,
+                                message.temperature);
+        sensor_data.add_reading(SensorType::AtmosphericHumidity, 0,
+                                message.humidity);
       }};
 
   Controller controller;

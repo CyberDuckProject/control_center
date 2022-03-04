@@ -1,6 +1,7 @@
 #include <asio.hpp> // network
 #include <atomic>
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
@@ -164,13 +165,15 @@ public:
   }
 };
 
-struct MessageHeader {
-  uint64_t type;
-  int64_t size;
+struct Message {
+  float water_temperature;
+  float turbidity;
+  float dust;
+  float battery_voltage;
+  float pressure;
+  float temperature;
+  float humidity;
 };
-MessageHeader generate_message_header(uint8_t type) {
-  return {type, time(nullptr)};
-}
 
 int main() {
   asio::io_context ctx;
@@ -194,12 +197,17 @@ int main() {
   UDPTransmitter sensor_transmitter{
       ctx, receiver, SENSOR_UDP_PORT,
       [rand_val = 0.0f, type = 0, now = std::chrono::steady_clock::time_point{},
-       header = MessageHeader{}]() mutable {
-        type = (type + 1) % 6;
-        header = generate_message_header(type + 1);
-        rand_val = rand() / static_cast<float>(RAND_MAX);
-        return std::array{asio::buffer(&header, sizeof(header)),
-                          asio::buffer(&rand_val, sizeof(rand_val))};
+       message = Message{}]() mutable {
+        const float val = rand() / static_cast<float>(RAND_MAX);
+        rand_val = val;
+        message.water_temperature = val;
+        message.turbidity = val;
+        message.dust = val;
+        message.battery_voltage = val;
+        message.pressure = val;
+        message.temperature = val;
+        message.humidity = val;
+        return asio::buffer(&message, sizeof(message));
       }};
 
   std::thread worker1{[&] { ctx.run(); }};

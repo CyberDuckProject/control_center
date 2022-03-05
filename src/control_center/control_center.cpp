@@ -38,7 +38,7 @@ int main(int, char **) {
   GUIContext gui_ctx{23.0f};
 
   SensorData sensor_data;
-  auto camera_view = gui_ctx.create_texture(1385, 1080);
+  auto camera_view = gui_ctx.create_texture(1552, 1552);
   UI ui{address, camera_view, sensor_data};
 
   TextureUpdateData update_data{camera_view};

@@ -162,18 +162,21 @@ class TCPConnector {
 
   void accept() { acceptor.async_accept(std::ref(*this)); }
   void on_connect() {
-    // TODO: for example flash eyes
+    std::cout << "Connected to remote: " << receiver << '\n';
   }
   void on_receive(float left, float right) {
     // TODO: change motor speed
     // std::cout << "left motor: " << left << std::endl;
     // std::cout << "right motor: " << right << std::endl;
   }
-  void on_disconnect() { receiver = ip::address{}; }
+  void on_disconnect() {
+    receiver = ip::address{};
+    std::cout << "Disconnected from remote\n";
+  }
 
 public:
   TCPConnector(asio::io_context &ctx, ip::address &receiver)
-      : acceptor{ctx}, receiver{receiver} {
+      : acceptor{ctx, tcp::endpoint{tcp::v4(), MOTOR_TCP_PORT}}, receiver{receiver} {
     accept();
   }
 

@@ -235,12 +235,20 @@ struct Message {
   float humidity;
 };
 
+std::pair<size_t, size_t> proccess_cmdline_args(int argc, char **argv) {
+  if (argc != 3)
+    throw std::runtime_error("Usage: test_driver image_width image_height");
+  return {std::stoi(argv[1], nullptr, 10), std::stoi(argv[2], nullptr, 10)};
+}
+
 // use with
 // ffmpeg -y -f avfoundation -framerate 30 -i "0" -preset ultrafast -r 20 -f
 // image2pipe - |
 // ./test_driver
-int main() {
+int main(int argc, char **argv) {
   try {
+    auto [img_width, img_height] = proccess_cmdline_args(argc, argv);
+
     asio::io_context ctx;
     ImageLoader loader;
 
@@ -249,8 +257,8 @@ int main() {
 
     UDPTransmitter video_transmitter{
         ctx, receiver, VIDEO_UDP_PORT,
-        [frame_idx = 0, &loader, image = ImageStorage{1552, 1552},
-         compressed = ImageCompressedStorage{1552, 1552}]() mutable {
+        [frame_idx = 0, &loader, image = ImageStorage{img_width, img_height},
+         compressed = ImageCompressedStorage{img_width, img_height}]() mutable {
           frame_idx = loader.load_next_frame(image);
           for (int quality = 50; !compress_image(compressed, image, quality);)
             quality /= 2;

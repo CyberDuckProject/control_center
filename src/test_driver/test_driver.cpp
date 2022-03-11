@@ -11,6 +11,7 @@
 #include <memory>
 #include <sstream>
 #include <stdexcept>
+#include <thread>
 #include <unistd.h>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -176,7 +177,8 @@ class TCPConnector {
 
 public:
   TCPConnector(asio::io_context &ctx, ip::address &receiver)
-      : acceptor{ctx, tcp::endpoint{tcp::v4(), MOTOR_TCP_PORT}}, receiver{receiver} {
+      : acceptor{ctx, tcp::endpoint{tcp::v4(), MOTOR_TCP_PORT}}, receiver{
+                                                                     receiver} {
     accept();
   }
 
@@ -274,6 +276,7 @@ int main(int argc, char **argv) {
         [rand_val = 0.0f, type = 0,
          now = std::chrono::steady_clock::time_point{},
          message = Message{}]() mutable {
+          std::this_thread::sleep_for(std::chrono::seconds(1));
           const float val = rand() / static_cast<float>(RAND_MAX);
           rand_val = val;
           message.water_temperature = val;

@@ -287,6 +287,8 @@ int main(int argc, char **argv) {
         }};
 
     std::thread worker1{[&] { ctx.run(); }};
+    std::thread worker2{[&] { ctx.run(); }};
+    std::thread worker3{[&] { ctx.run(); }};
     ctx.run();
 
   } catch (const std::exception &e) {

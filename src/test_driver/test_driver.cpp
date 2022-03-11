@@ -16,8 +16,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h> // loading images from disk
 
-#include <nfd.hpp> // for folder selection dialog
-
 namespace ip = asio::ip;
 using tcp = ip::tcp;
 using udp = ip::udp;
@@ -35,12 +33,6 @@ struct ImageStorage {
   ImageStorage(const ImageStorage &other)
       : ImageStorage{other.width, other.height} {}
 };
-std::string show_pick_folder_dialog() {
-  NFD::UniquePathN path;
-  NFD::PickFolder(path);
-  std::string s = path.get();
-  return s;
-}
 class ImageLoader {
   int current_frame = 0;
   std::istream &in = std::cin;
@@ -250,7 +242,6 @@ struct Message {
 int main() {
   try {
     asio::io_context ctx;
-    NFD::Init();
     ImageLoader loader;
 
     ip::address receiver;

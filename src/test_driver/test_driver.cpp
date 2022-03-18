@@ -282,23 +282,6 @@ int main(int argc, char **argv) {
               asio::buffer(&frame_idx, sizeof(frame_idx)),
               asio::buffer(compressed.data.get(), compressed.stored_size)};
         }};
-    UDPTransmitter sensor_transmitter{
-        ctx, receiver, SENSOR_UDP_PORT,
-        [rand_val = 0.0f, type = 0,
-         now = std::chrono::steady_clock::time_point{},
-         message = Message{}]() mutable {
-          std::this_thread::sleep_for(std::chrono::seconds(1));
-          const float val = rand() / static_cast<float>(RAND_MAX);
-          rand_val = val;
-          message.water_temperature = val;
-          message.turbidity = val;
-          message.dust = val;
-          message.battery_voltage = val;
-          message.pressure = val;
-          message.temperature = val;
-          message.humidity = val;
-          return asio::buffer(&message, sizeof(message));
-        }};
 
     std::thread worker1{[&] { ctx.run(); }};
     std::thread worker2{[&] { ctx.run(); }};

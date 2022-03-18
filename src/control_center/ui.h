@@ -46,8 +46,10 @@ public:
 
       // Update motor data
       {
-        ImGui::DragFloat("Left speed", &motor_data.left_speed, 0.05, 0, 1);
-        ImGui::DragFloat("Right speed", &motor_data.right_speed, 0.05, 0, 1);
+        constexpr double min_speed = 0;
+        constexpr double max_speed = 1;
+        ImGui::DragScalar("Left speed", ImGuiDataType_Double, &motor_data.left_speed, 0.05, &min_speed, &max_speed);
+        ImGui::DragScalar("Right speed", ImGuiDataType_Double, &motor_data.right_speed, 0.05, &min_speed, &max_speed);
       }
 
       // Display FPS

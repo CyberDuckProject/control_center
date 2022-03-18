@@ -38,7 +38,7 @@ int main(int, char **) {
   GUIContext gui_ctx{23.0f};
 
   SensorData sensor_data;
-  auto camera_view = gui_ctx.create_texture(1552, 1552);
+  auto camera_view = gui_ctx.create_texture(1280, 720);
   UI ui{address, camera_view, sensor_data};
 
   TextureUpdateData update_data{camera_view};
@@ -57,13 +57,13 @@ int main(int, char **) {
       }};
 
   struct Message { // TODO: refactor
-    float water_temperature;
-    float turbidity;
-    float dust;
-    float battery_voltage;
-    float pressure;
-    float temperature;
-    float humidity;
+    double water_temperature;
+    double turbidity;
+    double dust;
+    double battery_voltage;
+    double pressure;
+    double temperature;
+    double humidity;
   } message;
   ReceivingLoop sensor_receiving_loop{
       udp::socket{ctx,

@@ -6,9 +6,12 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <ios>
 #include <iostream>
+#include <istream>
 #include <jpge.h> // jpeg compression
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <thread>
@@ -25,22 +28,25 @@ struct Pixel {
   unsigned char r, g, b;
 };
 struct ImageStorage {
-  const size_t width, height;
+  size_t width, height;
   std::unique_ptr<Pixel[]> data;
 
-  ImageStorage(size_t width, size_t height)
+  ImageStorage(size_t width = 0, size_t height = 0)
       : width{width}, height{height}, data{std::make_unique<Pixel[]>(width *
                                                                      height)} {}
   ImageStorage(const ImageStorage &other)
       : ImageStorage{other.width, other.height} {}
+
+  ImageStorage& operator=(ImageStorage &&) = default;
 };
 class ImageLoader {
   int current_frame = 0;
-  std::istream &in = std::cin;
+  std::istream &in;
   std::vector<unsigned char> current_contents;
   static constexpr unsigned char delim[] = {
-      0xff, 0xd8, 0xff, 0xfe, 0x00, 0x10, 0x4c, 0x61, 0x76, 0x63,
-      0x35, 0x39, 0x2e, 0x31, 0x38, 0x2e, 0x31, 0x30, 0x30};
+      0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46,
+      0x00, 0x01, 0x02, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00};
+  
   static constexpr size_t delim_sz = sizeof(delim);
 
   static constexpr size_t bufsz = 4096;
@@ -55,15 +61,13 @@ class ImageLoader {
     auto read_image =
         stbi_load_from_memory(current_contents.data(), current_contents.size(),
                               &read_width, &read_height, &read_components, 3);
-    if (!read_image) {
+    if (!read_image || read_components != 3) {
       std::cerr << std::string("Could not read image. ") + stbi_failure_reason()
                 << '\n';
       return;
     }
-    if (read_width != out.width || read_height != out.height ||
-        read_components != 3)
-      throw std::runtime_error(
-          "Read image not compatible with the given image storage");
+    if (read_width != out.width || read_height != out.height)
+      out = ImageStorage(read_width, read_height);
 
     memcpy(static_cast<void *>(out.data.get()), read_image,
            out.width * out.height * 3);
@@ -71,10 +75,10 @@ class ImageLoader {
   }
 
 public:
-  ImageLoader() {
+  ImageLoader(std::istream& in) : in{in} {
     in.read((char *)intermediate.get(), bufsz);
     in.read((char *)intermediate_next.get(), bufsz);
-  }
+  };
   size_t load_next_frame(ImageStorage &out) {
     for (; true;) {
       if (i == bufsz) {
@@ -134,18 +138,24 @@ public:
 };
 constexpr size_t MAX_COMPRESSED_IMG_SZ = 65001;
 struct ImageCompressedStorage {
-  const size_t capacity;
+  size_t capacity;
   int stored_size;
   std::unique_ptr<char[]> data;
+  int width, height;
 
-  ImageCompressedStorage(size_t width, size_t height)
+  ImageCompressedStorage(size_t width = 0, size_t height = 0)
       : capacity{std::min(width * height * 3, MAX_COMPRESSED_IMG_SZ)},
-        stored_size{0}, data{std::make_unique<char[]>(capacity)} {}
+        stored_size{0}, data{std::make_unique<char[]>(capacity)}, width(width), height(height) {}
   ImageCompressedStorage(const ImageCompressedStorage &other)
       : ImageCompressedStorage{1, other.capacity / 3} {}
+
+  ImageCompressedStorage& operator=(ImageCompressedStorage&&) = default;
+
 };
 bool compress_image(ImageCompressedStorage &out, const ImageStorage &image,
                     size_t quality) {
+  if (out.width != image.width || out.height != image.height)
+    out = ImageCompressedStorage(image.width, image.height);
   out.stored_size = out.capacity;
 
   auto params = jpge::params{};
@@ -240,33 +250,34 @@ struct Message {
   float humidity;
 };
 
-std::pair<size_t, size_t> proccess_cmdline_args(int argc, char **argv) {
-  if (argc != 3)
-    throw std::runtime_error("Usage: test_driver image_width image_height");
-  return {std::stoi(argv[1], nullptr, 10), std::stoi(argv[2], nullptr, 10)};
-}
-
 // use with
 // ffmpeg -y -f avfoundation -framerate 30 -i "0" -preset ultrafast -r 20 -f
 // image2pipe - |
 // ./test_driver
 int main(int argc, char **argv) {
   try {
-    auto [img_width, img_height] = proccess_cmdline_args(argc, argv);
-
     asio::io_context ctx;
-    ImageLoader loader;
+
+    auto in = (argc == 1 ? std::nullopt : std::optional<std::ifstream>{std::in_place, argv[1], std::ios_base::binary});
+    if (in.has_value() && !*in)
+      throw std::runtime_error("Could not open file");
+    ImageLoader loader{[&]()->std::istream&{ if(in.has_value()) return *in; else return std::cin;  }()};
 
     ip::address receiver;
     TCPConnector connector{ctx, receiver};
 
     UDPTransmitter video_transmitter{
         ctx, receiver, VIDEO_UDP_PORT,
-        [frame_idx = 0, &loader, image = ImageStorage{img_width, img_height},
-         compressed = ImageCompressedStorage{img_width, img_height}]() mutable {
+        [frame_idx = 0, &loader, image = ImageStorage{},
+         compressed = ImageCompressedStorage{}]() mutable {
           frame_idx = loader.load_next_frame(image);
           for (int quality = 50; !compress_image(compressed, image, quality);)
-            quality /= 2;
+            if (quality == 0) {
+                std::cerr << "Could not compress frame! Skipping!\n";
+                break;            
+              }
+            else
+              quality /= 2;
           return std::array{
               asio::buffer(&frame_idx, sizeof(frame_idx)),
               asio::buffer(compressed.data.get(), compressed.stored_size)};
@@ -293,7 +304,9 @@ int main(int argc, char **argv) {
     std::thread worker2{[&] { ctx.run(); }};
     std::thread worker3{[&] { ctx.run(); }};
     ctx.run();
-
+    worker1.join();
+    worker2.join();
+    worker3.join();
   } catch (const std::exception &e) {
     std::cerr << "STREAMER ERROR: " << e.what() << '\n';
     return 1;

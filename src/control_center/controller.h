@@ -21,18 +21,22 @@ public:
     }
   }
   float left_x() {
+    find_controller();
     return SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX) /
            32767.0f;
   }
   float right_x() {
+    find_controller();
     return SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTX) /
            32767.0f;
   }
   float left_y() {
+    find_controller();
     return SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY) /
            32767.0f;
   }
   float right_y() {
+    find_controller();
     return SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTY) /
            32767.0f;
   }

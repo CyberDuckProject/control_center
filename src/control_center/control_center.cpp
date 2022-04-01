@@ -92,12 +92,10 @@ int main(int, char **) {
   std::vector<std::thread> workers;
   {
     asio::io_context::work work{ctx};
-    const int worker_count = 1;
+    const int worker_count = 4;
     for (int i = 0; i < worker_count; ++i) {
       workers.emplace_back([&ctx] {
-        std::cout << "began!\n";
         ctx.run();
-        std::cout << "done!\n";
       });
     }
 

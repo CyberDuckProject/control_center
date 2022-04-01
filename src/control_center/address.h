@@ -18,7 +18,8 @@ struct Address {
   int port;
 };
 
-constexpr const char *const MOTOR_TCP_PORT = "1333";
+#define MOTOR_TCP_PORT "1333"
+#define DEFAULT_HOST "raspberrypi.local"
 constexpr int VIDEO_UDP_PORT = 1512;
 constexpr int SENSOR_UDP_PORT = 1666;
 

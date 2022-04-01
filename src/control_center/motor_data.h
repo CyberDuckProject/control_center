@@ -2,8 +2,8 @@
 #define MOTOR_DATA_H
 
 struct MotorData {
-  float left_speed;
-  float right_speed;
+  double left_speed;
+  double right_speed;
 };
 
 #endif

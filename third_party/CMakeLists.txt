@@ -6,6 +6,12 @@ add_subdirectory(SDL)
 
 # Add freetype
 # to use link with target freetype
+
+set(FT_DISABLE_ZLIB TRUE CACHE BOOL "" FORCE)
+set(FT_DISABLE_BZIP2 TRUE CACHE BOOL "" FORCE)
+set(FT_DISABLE_PNG TRUE CACHE BOOL "" FORCE)
+set(FT_DISABLE_HARFBUZZ TRUE CACHE BOOL "" FORCE)
+set(FT_DISABLE_BROTLI TRUE CACHE BOOL "" FORCE)
 add_subdirectory(freetype)
 
 # Add ImGui
@@ -31,6 +37,19 @@ if (WIN32 AND NOT (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC"))
         target_link_libraries(Imgui PUBLIC "Imm32.lib")
 endif()
 
+# Add ImPlot
+# to use link with target Implot
+add_library(Implot
+        implot/implot.cpp
+        implot/implot_items.cpp
+        implot/implot_demo.cpp
+        )
+target_include_directories(Implot PUBLIC
+        implot
+        )
+target_link_libraries(Implot PUBLIC Imgui)
+target_compile_features(Implot PUBLIC cxx_std_17)
+
 # Add Asio
 # to use link with target asio
 add_library(Asio INTERFACE)
@@ -42,6 +61,3 @@ add_library(JPEG
         jpeg-compressor/jpge.cpp
 )
 target_include_directories(JPEG PUBLIC jpeg-compressor)
-
-# Add Native File Dialog Extended
-add_subdirectory(nativefiledialog-extended)

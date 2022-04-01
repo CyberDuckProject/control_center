@@ -1,49 +1,32 @@
 #ifndef RECEIVING_LOOP_H
 #define RECEIVING_LOOP_H
 
-#include <algorithm>
 #include <asio.hpp>
 
-#include "address.h"
-#include "frame_stats.h"
-#include "gui_context.h"
-#include "texture_update_data.h"
-
-class ReceivingLoop {
+template <typename F1, typename F2> class ReceivingLoop {
 private:
   using udp = asio::ip::udp;
-
   udp::socket socket;
   udp::endpoint remote;
-  TextureUpdateData &update_data;
-
-  std::chrono::steady_clock::time_point frame_begin_recv;
-  FrameStats frame_stats;
-  int frame_number = 0;
+  F1 receive_buffer_generator;
+  F2 on_receive;
 
 public:
-  ReceivingLoop(asio::io_context &ctx, TextureUpdateData &update_data)
-      : socket{ctx, udp::endpoint{asio::ip::address_v4::any(), VIDEO_PORT}}, update_data{
-                                                               update_data} {
-    (*this)({}, 0);
+  ReceivingLoop(udp::socket &&socket, F1 &&receive_buffer_generator,
+                F2 &&on_receive)
+      : socket{std::move(socket)}, receive_buffer_generator{std::move(
+                                       receive_buffer_generator)},
+        on_receive{std::move(on_receive)} {
+    (*this)();
   }
-  void operator()(asio::error_code ec, std::size_t bytes_received) {
-    update_data.set_recieved_data(bytes_received);
-    update_data.data();
-
-    const auto now = std::chrono::steady_clock::now();
-    frame_stats.frametime = now - frame_begin_recv;
-	if (frame_stats.frametime.count() > 1000000000ll)
-		std::cout << "slow frame idx " << frame_number << " (" << frame_stats.frametime.count() << "ns)\n";
-    frame_begin_recv = now;
-    frame_stats.framesize = bytes_received;
-
-	socket.async_receive_from(std::array{ asio::buffer(&frame_number, sizeof(frame_number)), update_data.get_compressed_buffer() }, remote,
-                              std::ref(*this));
+  void operator()() {
+    socket.async_receive_from(
+        receive_buffer_generator(), remote,
+        [this](asio::error_code ec, std::size_t bytes_received) {
+          on_receive(ec, bytes_received, remote);
+          (*this)();
+        });
   }
-
-  // Stats
-  FrameStats last_frame_stats() const { return frame_stats; }
 };
 
 #endif

@@ -2,39 +2,33 @@
 #define UI_H
 
 #include <imgui.h>
+#include <implot.h>
 #include <optional>
 #include <sstream>
 #include <string_view>
 
 #include "address.h"
 #include "frame_stats.h"
+#include "gui_context.h"
 #include "motor_data.h"
+#include "sensor_data.h"
 
 class UI {
 public:
-  UI(std::optional<Address> &address, Texture &img)
-      : current_address{address}, camera_view{img} {}
+  UI(std::optional<Address> &address, const Texture &img,
+     const SensorData &sensor_data)
+      : current_address{address}, camera_view{img}, sensor_data{sensor_data} {}
 
   template <typename F>
   void update(MotorData &motor_data, F &&reconnect_handler) {
-    constexpr auto wnd_flags =
-        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoTitleBar;
-    if (ImGui::Begin("Control Center", nullptr, wnd_flags)) {
-      ImGui::SetWindowPos({0, 0});
-      const auto wnd_sz = ImVec2{
-        ImGui::GetWindowViewport()->Size.x * ImGui::GetWindowViewport()->DpiScale,
-        ImGui::GetWindowViewport()->Size.y * ImGui::GetWindowViewport()->DpiScale
-      };
-      ImGui::SetWindowSize(wnd_sz);
-
+    if (ImGui::Begin("Control Center")) {
       // Update address
       {
         const bool changed = ImGui::InputText("Host", host, bufsz);
 
         ImGui::BeginDisabled();
         ImGui::InputText("Service", service, bufsz);
-        strcpy(service, CYBERDUCK_SERVICE);
+        strcpy(service, MOTOR_TCP_PORT);
         ImGui::EndDisabled();
 
         if (changed) {
@@ -44,7 +38,7 @@ public:
         if (current_address.has_value()) {
           std::stringstream temp{};
           temp << *current_address;
-          ImGui::Text(("Connected to " + temp.str()).c_str());
+          ImGui::Text("%s", ("Connected to " + temp.str()).c_str());
         } else {
           ImGui::Text("Connecting...");
         }
@@ -52,8 +46,10 @@ public:
 
       // Update motor data
       {
-        ImGui::DragFloat("Left speed", &motor_data.left_speed, 0.05, 0, 1);
-        ImGui::DragFloat("Right speed", &motor_data.right_speed, 0.05, 0, 1);
+        constexpr double min_speed = 0;
+        constexpr double max_speed = 1;
+        ImGui::DragScalar("Left speed", ImGuiDataType_Double, &motor_data.left_speed, 0.05, &min_speed, &max_speed);
+        ImGui::DragScalar("Right speed", ImGuiDataType_Double, &motor_data.right_speed, 0.05, &min_speed, &max_speed);
       }
 
       // Display FPS
@@ -67,8 +63,64 @@ public:
       ImGui::Text("Network Performance: %.3f%% packet size used (%.3f Mbps)",
                   frame_stats.framesize / max_packet_sz * 100.0f,
                   fps * frame_stats.framesize * bytes_to_megabits);
+    }
+    ImGui::End();
 
+    if (ImGui::Begin("Camera View"))
       ImGui::Image(camera_view.handle(), ImGui::GetContentRegionAvail());
+    ImGui::End();
+
+    if (ImGui::Begin("Sensor Data")) {
+      static ImGuiTableFlags flags =
+          ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV |
+          ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable |
+          ImGuiTableFlags_Reorderable;
+      if (ImGui::BeginTable("##sensor_readings", 3, flags, ImVec2(-1, 0))) {
+        ImGui::TableSetupColumn("Sensor", ImGuiTableColumnFlags_WidthFixed,
+                                75.0f);
+        ImGui::TableSetupColumn("Reading", ImGuiTableColumnFlags_WidthFixed,
+                                75.0f);
+        ImGui::TableSetupColumn("Graph");
+        ImGui::TableHeadersRow();
+        ImPlot::PushColormap(ImPlotColormap_Cool);
+        for (int row = 0; row < sensor_data.sensor_count; row++) {
+          ImGui::TableNextRow();
+          ImGui::TableSetColumnIndex(0);
+          ImGui::Text("%s", sensor_data.name(row));
+          ImGui::TableSetColumnIndex(1);
+          if (!sensor_data[row].second_range().empty())
+            ImGui::Text("%f", sensor_data[row].second_range().back());
+          else
+            ImGui::Text("%f", sensor_data[row].first_range().back());
+          ImGui::TableSetColumnIndex(2);
+          ImGui::PushID(row);
+
+          ImPlot::PushStyleVar(ImPlotStyleVar_PlotPadding, ImVec2(0, 0));
+          if (ImPlot::BeginPlot("##graph", ImVec2(-1, 35),
+                                ImPlotFlags_CanvasOnly | ImPlotFlags_NoChild)) {
+            ImPlot::SetupAxes(0, 0, ImPlotAxisFlags_NoDecorations,
+                              ImPlotAxisFlags_NoDecorations);
+            ImPlot::SetupAxesLimits(0, sensor_data[row].size() - 1,
+                                    sensor_data.min_val(row),
+                                    sensor_data.max_val(row), ImGuiCond_Always);
+            ImPlot::PushStyleColor(ImPlotCol_Line,
+                                   ImPlot::GetColormapColor(row));
+            ImPlot::PlotLine("##graph", sensor_data[row].first_range().data(),
+                             sensor_data[row].first_range().size(), 1, 0, 0);
+            ImPlot::PlotLine("##graph", sensor_data[row].second_range().data(),
+                             sensor_data[row].second_range().size(), 1,
+                             sensor_data[row].first_range().size(), 0);
+            ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.25f);
+            ImPlot::PopStyleVar();
+            ImPlot::PopStyleColor();
+            ImPlot::EndPlot();
+          }
+          ImPlot::PopStyleVar();
+          ImGui::PopID();
+        }
+        ImPlot::PopColormap();
+        ImGui::EndTable();
+      }
     }
     ImGui::End();
   }
@@ -86,7 +138,8 @@ private:
   char host[bufsz]{};
   char service[bufsz]{};
   std::optional<Address> &current_address;
-  Texture &camera_view;
+  const Texture &camera_view;
+  const SensorData &sensor_data;
   FrameStats frame_stats;
 };
 

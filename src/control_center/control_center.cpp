@@ -5,20 +5,25 @@
 #include "gui_context.h"
 #include "motor_data.h"
 #include "receiving_loop.h"
-#include "transmission_loop.h"
+#include "sensor_data.h"
+#include "texture_update_data.h"
+#include "timer_loop.h"
 #include "transmitter.h"
 #include "ui.h"
 
 using tcp = asio::ip::tcp;
+using udp = asio::ip::udp;
 
 int main(int, char **) {
   asio::io_context ctx;
 
   Transmitter transmitter{ctx};
   MotorData motor_data{};
-  asio::steady_timer timer{ctx};
-  TransmissionLoop transmission_loop{transmitter, timer, motor_data,
-                                     std::chrono::milliseconds{100}};
+  TimerLoop transmission_loop{asio::steady_timer{ctx},
+                              std::chrono::milliseconds{100},
+                              [&transmitter, &motor_data]() {
+                                transmitter.async_send(motor_data, [](...) {});
+                              }};
 
   // This has to be static and the reason why is rather interesting.
   // This address is changed inside the transmitter.async_connect callback.
@@ -32,23 +37,65 @@ int main(int, char **) {
 
   GUIContext gui_ctx{23.0f};
 
-  auto camera_view = gui_ctx.create_texture(1385, 1080);
-  UI ui{address, camera_view};
+  SensorData sensor_data;
+  auto camera_view = gui_ctx.create_texture(1280, 720);
+  UI ui{address, camera_view, sensor_data};
 
   TextureUpdateData update_data{camera_view};
-  ReceivingLoop receiving_loop{ctx, update_data};
+  int current_frame_number{}; // TODO: wrap in frame stats
+  ReceivingLoop video_receiving_loop{
+      udp::socket{ctx,
+                  udp::endpoint{asio::ip::address_v4::any(), VIDEO_UDP_PORT}},
+      [&current_frame_number, &update_data]() {
+        return std::array{
+            asio::buffer(&current_frame_number, sizeof(current_frame_number)),
+            update_data.begin_receiving_data()};
+      },
+      [&update_data](asio::error_code ec, std::size_t bytes_received,
+                     const udp::endpoint & /*sender*/) {
+        update_data.end_receiving_data(bytes_received);
+      }};
+
+  struct Message { // TODO: refactor
+    double water_temperature;
+    double turbidity;
+    double dust;
+    double battery_voltage;
+    double pressure;
+    double temperature;
+    double humidity;
+  } message;
+  ReceivingLoop sensor_receiving_loop{
+      udp::socket{ctx,
+                  udp::endpoint{asio::ip::address_v4::any(), SENSOR_UDP_PORT}},
+      [&message]() { return asio::buffer(&message, sizeof(message)); },
+      [&message, &sensor_data](asio::error_code ec, std::size_t bytes_received,
+                               const udp::endpoint & /*sender*/) {
+        // TODO: receive timestamp
+        sensor_data.add_reading(SensorType::WaterTemperature, 0,
+                                message.water_temperature);
+        sensor_data.add_reading(SensorType::WaterTurbidity, 0,
+                                message.turbidity);
+        sensor_data.add_reading(SensorType::Dust, 0, message.dust);
+        sensor_data.add_reading(SensorType::BatteryVoltage, 0,
+                                message.battery_voltage);
+        sensor_data.add_reading(SensorType::AtmosphericPressure, 0,
+                                message.pressure);
+        sensor_data.add_reading(SensorType::AtmosphericTemperature, 0,
+                                message.temperature);
+        sensor_data.add_reading(SensorType::AtmosphericHumidity, 0,
+                                message.humidity);
+      }};
 
   Controller controller;
 
   std::vector<std::thread> workers;
   {
     asio::io_context::work work{ctx};
-    const int worker_count = 1;
+    const int worker_count = 4;
     for (int i = 0; i < worker_count; ++i) {
       workers.emplace_back([&ctx] {
-        std::cout << "began!\n";
         ctx.run();
-        std::cout << "done!\n";
       });
     }
 
@@ -63,7 +110,8 @@ int main(int, char **) {
 
       gui_ctx.update_texture(camera_view, update_data.data());
 
-      ui.set_frame_stats(receiving_loop.last_frame_stats());
+      // ui.set_frame_stats(receiving_loop.last_frame_stats()); TODO:
+      // reimplement frame stats
 
       gui_ctx.render([&ui, &motor_data, &transmitter] {
         ui.update(motor_data, [&transmitter, &ui](std::string_view host,

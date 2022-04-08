@@ -24,10 +24,14 @@ public:
     if (ImGui::Begin("Control Center")) {
       // Update address
       {
-        bool changed = ImGui::InputText("Host", host, bufsz);
-        changed |= ImGui::InputText("Service", service, bufsz);
+        const bool changed = ImGui::InputText("Host", host, bufsz);
 
-        if (changed || !current_address.has_value()) {
+        ImGui::BeginDisabled();
+        ImGui::InputText("Service", service, bufsz);
+        strcpy(service, MOTOR_TCP_PORT);
+        ImGui::EndDisabled();
+
+        if (changed) {
           reconnect_handler(std::string_view{host}, std::string_view{service});
         }
 
@@ -131,8 +135,8 @@ public:
 
 private:
   static constexpr int bufsz = 512;
-  char host[bufsz]{DEFAULT_HOST};
-  char service[bufsz]{MOTOR_TCP_PORT};
+  char host[bufsz]{};
+  char service[bufsz]{};
   std::optional<Address> &current_address;
   const Texture &camera_view;
   const SensorData &sensor_data;
